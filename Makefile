@@ -1,3 +1,8 @@
+-include .env
+export
+
+MIGRATIONS_DIR=internal/database/migrations
+
 .PHONY: help
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -6,12 +11,36 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: build
-build: ## Build the application
-	@echo "Building application..."
+build:
 	go build -o bin/auth-service cmd/auth-service/main.go
-	@echo "Build complete: bin/auth-service"
 
 .PHONY: run
-run: ## Run the application
-	@echo "Starting application..."
+run:
 	go run cmd/auth-service/main.go
+
+.PHONY: migrate-create
+migrate-create: ## Usage: make migrate-create NAME=init
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		exit 1; \
+	fi
+	goose -dir $(MIGRATIONS_DIR) create $(NAME) sql
+
+.PHONY: migrate-up
+migrate-up:
+	goose -dir $(MIGRATIONS_DIR) postgres "host=$(DB_HOST) port=$(DB_PORT) user=$(DB_USER) password=$(DB_PASSWORD) dbname=$(DB_NAME) sslmode=disable" up
+	@echo "Migrations applied successfully"
+
+.PHONY: migrate-down
+migrate-down:
+	goose -dir $(MIGRATIONS_DIR) postgres "host=$(DB_HOST) port=$(DB_PORT) user=$(DB_USER) password=$(DB_PASSWORD) dbname=$(DB_NAME) sslmode=disable" down
+	@echo "Migration rolled back"
+
+.PHONY: migrate-status
+migrate-status:
+	goose -dir $(MIGRATIONS_DIR) postgres "host=$(DB_HOST) port=$(DB_PORT) user=$(DB_USER) password=$(DB_PASSWORD) dbname=$(DB_NAME) sslmode=disable" status
+
+.PHONY: sqlc-generate
+sqlc-generate:
+	sqlc generate
+	@echo "sqlc code generated successfully"
