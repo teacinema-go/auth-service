@@ -11,13 +11,63 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getAccount = `-- name: GetAccount :one
-SELECT id, phone, email, is_phone_verified, is_email_verified, created_at, updated_at FROM accounts
-WHERE id = $1 LIMIT 1
+const createAccount = `-- name: CreateAccount :one
+INSERT INTO accounts (
+    id, phone, email
+) VALUES (
+             $1, $2, $3
+         )
+RETURNING id, phone, email, is_phone_verified, is_email_verified, created_at, updated_at
 `
 
-func (q *Queries) GetAccount(ctx context.Context, id pgtype.UUID) (Account, error) {
-	row := q.db.QueryRow(ctx, getAccount, id)
+type CreateAccountParams struct {
+	ID    pgtype.UUID `json:"id"`
+	Phone *string     `json:"phone"`
+	Email *string     `json:"email"`
+}
+
+func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error) {
+	row := q.db.QueryRow(ctx, createAccount, arg.ID, arg.Phone, arg.Email)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.Phone,
+		&i.Email,
+		&i.IsPhoneVerified,
+		&i.IsEmailVerified,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAccountByEmail = `-- name: GetAccountByEmail :one
+SELECT id, phone, email, is_phone_verified, is_email_verified, created_at, updated_at FROM accounts
+WHERE email = $1 LIMIT 1
+`
+
+func (q *Queries) GetAccountByEmail(ctx context.Context, email *string) (Account, error) {
+	row := q.db.QueryRow(ctx, getAccountByEmail, email)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.Phone,
+		&i.Email,
+		&i.IsPhoneVerified,
+		&i.IsEmailVerified,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAccountByPhone = `-- name: GetAccountByPhone :one
+SELECT id, phone, email, is_phone_verified, is_email_verified, created_at, updated_at FROM accounts
+WHERE phone = $1 LIMIT 1
+`
+
+func (q *Queries) GetAccountByPhone(ctx context.Context, phone *string) (Account, error) {
+	row := q.db.QueryRow(ctx, getAccountByPhone, phone)
 	var i Account
 	err := row.Scan(
 		&i.ID,

@@ -6,12 +6,12 @@ package teacinema
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
-	GetAccount(ctx context.Context, id pgtype.UUID) (Account, error)
+	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
+	GetAccountByEmail(ctx context.Context, email *string) (Account, error)
+	GetAccountByPhone(ctx context.Context, phone *string) (Account, error)
 }
 
 var _ Querier = (*Queries)(nil)
