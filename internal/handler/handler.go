@@ -5,23 +5,26 @@ import (
 	"log/slog"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgxpool"
 	teacinema "github.com/teacinema-go/auth-service/internal/database/sqlc"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 )
 
 type Handler struct {
-	l  *slog.Logger
-	v  *validator.Validate
-	db *teacinema.Queries
+	logger    *slog.Logger
+	validator *validator.Validate
+	queries   *teacinema.Queries
+	db        *pgxpool.Pool
 	authv1.UnimplementedAuthServiceServer
 }
 
-func NewHandler(l *slog.Logger, db *teacinema.Queries) *Handler {
+func NewHandler(logger *slog.Logger, queries *teacinema.Queries, db *pgxpool.Pool) *Handler {
 	v := validator.New()
 	return &Handler{
-		l:  l,
-		v:  v,
-		db: db,
+		logger:    logger,
+		validator: v,
+		queries:   queries,
+		db:        db,
 	}
 }
 

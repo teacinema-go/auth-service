@@ -23,7 +23,7 @@ type App struct {
 	cfg        *config.Config
 	logger     *slog.Logger
 	grpcServer *grpc.Server
-	dbPool     *pgxpool.Pool
+	db         *pgxpool.Pool
 }
 
 func New(cfg *config.Config, logger *slog.Logger) *App {
@@ -36,17 +36,17 @@ func New(cfg *config.Config, logger *slog.Logger) *App {
 func (a *App) Run() error {
 	ctx := context.Background()
 
-	dbPool, err := database.NewPool(ctx, &a.cfg.Database)
+	db, err := database.NewPool(ctx, &a.cfg.Database)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	a.dbPool = dbPool
-	db := teacinema.New(dbPool)
+	a.db = db
+	queries := teacinema.New(db)
 
 	a.logger.Info("database connection established")
 
 	a.grpcServer = grpc.NewServer()
-	h := handler.NewHandler(a.logger, db)
+	h := handler.NewHandler(a.logger, queries, db)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 
@@ -74,8 +74,8 @@ func (a *App) Run() error {
 	a.grpcServer.GracefulStop()
 	a.logger.Info("gRPC server stopped")
 
-	if a.dbPool != nil {
-		a.dbPool.Close()
+	if a.db != nil {
+		a.db.Close()
 		a.logger.Info("database connection closed")
 	}
 
