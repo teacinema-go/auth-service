@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -9,7 +10,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/teacinema-go/auth-service/internal/config"
+	"github.com/teacinema-go/auth-service/internal/database"
+	teacinema "github.com/teacinema-go/auth-service/internal/database/sqlc"
 	"github.com/teacinema-go/auth-service/internal/handler"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"google.golang.org/grpc"
@@ -19,6 +23,7 @@ type App struct {
 	cfg        *config.Config
 	logger     *slog.Logger
 	grpcServer *grpc.Server
+	dbPool     *pgxpool.Pool
 }
 
 func New(cfg *config.Config, logger *slog.Logger) *App {
@@ -29,9 +34,19 @@ func New(cfg *config.Config, logger *slog.Logger) *App {
 }
 
 func (a *App) Run() error {
-	a.grpcServer = grpc.NewServer()
+	ctx := context.Background()
 
-	h := handler.NewHandler(a.logger)
+	dbPool, err := database.NewPool(ctx, &a.cfg.Database)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	a.dbPool = dbPool
+	db := teacinema.New(dbPool)
+
+	a.logger.Info("database connection established")
+
+	a.grpcServer = grpc.NewServer()
+	h := handler.NewHandler(a.logger, db)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 
@@ -55,7 +70,15 @@ func (a *App) Run() error {
 	sig := <-quit
 	a.logger.Info("received shutdown signal", "signal", sig.String())
 	a.logger.Info("shutting down server...")
+
 	a.grpcServer.GracefulStop()
+	a.logger.Info("gRPC server stopped")
+
+	if a.dbPool != nil {
+		a.dbPool.Close()
+		a.logger.Info("database connection closed")
+	}
+
 	a.logger.Info("server stopped gracefully")
 	return nil
 }

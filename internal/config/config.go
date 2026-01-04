@@ -10,7 +10,8 @@ import (
 )
 
 type Config struct {
-	App AppConfig `mapstructure:",squash"`
+	App      AppConfig      `mapstructure:",squash"`
+	Database DatabaseConfig `mapstructure:",squash"`
 }
 
 type AppConfig struct {
@@ -18,9 +19,21 @@ type AppConfig struct {
 	Port int           `mapstructure:"APP_PORT" validate:"required"`
 }
 
+type DatabaseConfig struct {
+	Host     string `mapstructure:"DB_HOST" validate:"required"`
+	Port     int    `mapstructure:"DB_PORT" validate:"required"`
+	User     string `mapstructure:"DB_USER" validate:"required"`
+	Password string `mapstructure:"DB_PASSWORD" validate:"required"`
+	Name     string `mapstructure:"DB_NAME" validate:"required"`
+	SSLMode  string `mapstructure:"DB_SSLMODE"`
+}
+
 func Load() (*Config, error) {
 	viper.SetDefault("APP_ENV", constants.Development)
 	viper.SetDefault("APP_PORT", 50051)
+	viper.SetDefault("DB_HOST", "localhost")
+	viper.SetDefault("DB_PORT", 5432)
+	viper.SetDefault("DB_SSLMODE", "disable")
 
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
