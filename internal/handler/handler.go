@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	teacinema "github.com/teacinema-go/auth-service/internal/database/sqlc"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"google.golang.org/grpc/codes"
@@ -21,16 +22,18 @@ type Handler struct {
 	validator *validator.Validate
 	queries   *teacinema.Queries
 	db        *pgxpool.Pool
+	rdb       *redis.Client
 	authv1.UnimplementedAuthServiceServer
 }
 
-func NewHandler(logger *slog.Logger, queries *teacinema.Queries, db *pgxpool.Pool) *Handler {
+func NewHandler(logger *slog.Logger, queries *teacinema.Queries, db *pgxpool.Pool, rdb *redis.Client) *Handler {
 	v := validator.New()
 	return &Handler{
 		logger:    logger,
 		validator: v,
 		queries:   queries,
 		db:        db,
+		rdb:       rdb,
 	}
 }
 

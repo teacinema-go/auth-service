@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/teacinema-go/auth-service/internal/config"
 	"github.com/teacinema-go/auth-service/internal/database"
 	teacinema "github.com/teacinema-go/auth-service/internal/database/sqlc"
@@ -24,6 +25,7 @@ type App struct {
 	logger     *slog.Logger
 	grpcServer *grpc.Server
 	db         *pgxpool.Pool
+	rdb        *redis.Client
 }
 
 func New(cfg *config.Config, logger *slog.Logger) *App {
@@ -36,7 +38,7 @@ func New(cfg *config.Config, logger *slog.Logger) *App {
 func (a *App) Run() error {
 	ctx := context.Background()
 
-	db, err := database.NewPool(ctx, &a.cfg.Database)
+	db, err := database.NewPostgresClient(ctx, &a.cfg.Postgres)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -45,8 +47,15 @@ func (a *App) Run() error {
 
 	a.logger.Info("database connection established")
 
+	rdb, err := database.NewRedisClient(ctx, &a.cfg.Redis)
+	if err != nil {
+		return fmt.Errorf("failed to connect to redis: %w", err)
+	}
+	a.rdb = rdb
+	a.logger.Info("redis connection established")
+
 	a.grpcServer = grpc.NewServer()
-	h := handler.NewHandler(a.logger, queries, db)
+	h := handler.NewHandler(a.logger, queries, db, rdb)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 
@@ -77,6 +86,14 @@ func (a *App) Run() error {
 	if a.db != nil {
 		a.db.Close()
 		a.logger.Info("database connection closed")
+	}
+
+	if a.rdb != nil {
+		err := a.rdb.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close redis client: %w", err)
+		}
+		a.logger.Info("redis connection closed")
 	}
 
 	a.logger.Info("server stopped gracefully")

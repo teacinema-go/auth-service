@@ -11,7 +11,8 @@ import (
 
 type Config struct {
 	App      AppConfig      `mapstructure:",squash"`
-	Database DatabaseConfig `mapstructure:",squash"`
+	Postgres PostgresConfig `mapstructure:",squash"`
+	Redis    RedisConfig    `mapstructure:",squash"`
 }
 
 type AppConfig struct {
@@ -19,21 +20,23 @@ type AppConfig struct {
 	Port int           `mapstructure:"APP_PORT" validate:"required"`
 }
 
-type DatabaseConfig struct {
-	Host     string `mapstructure:"DB_HOST" validate:"required"`
-	Port     int    `mapstructure:"DB_PORT" validate:"required"`
-	User     string `mapstructure:"DB_USER" validate:"required"`
-	Password string `mapstructure:"DB_PASSWORD" validate:"required"`
-	Name     string `mapstructure:"DB_NAME" validate:"required"`
-	SSLMode  string `mapstructure:"DB_SSLMODE"`
+type PostgresConfig struct {
+	Host     string `mapstructure:"POSTGRES_HOST" validate:"required"`
+	Port     int    `mapstructure:"POSTGRES_PORT" validate:"required"`
+	User     string `mapstructure:"POSTGRES_USER" validate:"required"`
+	Password string `mapstructure:"POSTGRES_PASSWORD" validate:"required"`
+	Name     string `mapstructure:"POSTGRES_NAME" validate:"required"`
+	SSLMode  string `mapstructure:"POSTGRES_SSLMODE"`
+}
+
+type RedisConfig struct {
+	Host     string `mapstructure:"REDIS_HOST" validate:"required"`
+	Port     int    `mapstructure:"REDIS_PORT" validate:"required"`
+	Password string `mapstructure:"REDIS_PASSWORD"`
 }
 
 func Load() (*Config, error) {
-	viper.SetDefault("APP_ENV", constants.Development)
-	viper.SetDefault("APP_PORT", 50051)
-	viper.SetDefault("DB_HOST", "localhost")
-	viper.SetDefault("DB_PORT", 5432)
-	viper.SetDefault("DB_SSLMODE", "disable")
+	viper.SetDefault("POSTGRES_SSLMODE", "disable")
 
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()

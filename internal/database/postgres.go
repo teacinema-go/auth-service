@@ -9,7 +9,7 @@ import (
 	"github.com/teacinema-go/auth-service/internal/config"
 )
 
-func NewPool(ctx context.Context, cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
+func NewPostgresClient(ctx context.Context, cfg *config.PostgresConfig) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Host,
