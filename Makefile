@@ -28,17 +28,17 @@ migrate-create: ## Usage: make migrate-create NAME=init
 
 .PHONY: migrate-up
 migrate-up:
-	goose -dir $(MIGRATIONS_DIR) postgres "host=$(DB_HOST) port=$(DB_PORT) user=$(DB_USER) password=$(DB_PASSWORD) dbname=$(DB_NAME) sslmode=disable" up
+	goose -dir $(MIGRATIONS_DIR) postgres "host=$(POSTGRES_HOST) port=$(POSTGRES_PORT) user=$(POSTGRES_USER) password=$(POSTGRES_PASSWORD) dbname=$(POSTGRES_NAME) sslmode=disable" up
 	@echo "Migrations applied successfully"
 
 .PHONY: migrate-down
 migrate-down:
-	goose -dir $(MIGRATIONS_DIR) postgres "host=$(DB_HOST) port=$(DB_PORT) user=$(DB_USER) password=$(DB_PASSWORD) dbname=$(DB_NAME) sslmode=disable" down
+	goose -dir $(MIGRATIONS_DIR) postgres "host=$(POSTGRES_HOST) port=$(POSTGRES_PORT) user=$(POSTGRES_USER) password=$(POSTGRES_PASSWORD) dbname=$(POSTGRES_NAME) sslmode=disable" down
 	@echo "Migration rolled back"
 
 .PHONY: migrate-status
 migrate-status:
-	goose -dir $(MIGRATIONS_DIR) postgres "host=$(DB_HOST) port=$(DB_PORT) user=$(DB_USER) password=$(DB_PASSWORD) dbname=$(DB_NAME) sslmode=disable" status
+	goose -dir $(MIGRATIONS_DIR) postgres "host=$(POSTGRES_HOST) port=$(POSTGRES_PORT) user=$(POSTGRES_USER) password=$(POSTGRES_PASSWORD) dbname=$(POSTGRES_NAME) sslmode=disable" status
 
 .PHONY: sqlc-generate
 sqlc-generate:

@@ -4,8 +4,8 @@ CREATE TABLE accounts (
     id UUID PRIMARY KEY,
     phone VARCHAR(16) UNIQUE,
     email VARCHAR(255) UNIQUE,
-    is_phone_verified BOOLEAN DEFAULT FALSE,
-    is_email_verified BOOLEAN DEFAULT FALSE,
+    is_phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

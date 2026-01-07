@@ -16,6 +16,7 @@ import (
 	"github.com/teacinema-go/auth-service/internal/database"
 	teacinema "github.com/teacinema-go/auth-service/internal/database/sqlc"
 	"github.com/teacinema-go/auth-service/internal/handler"
+	"github.com/teacinema-go/auth-service/internal/service"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"google.golang.org/grpc"
 )
@@ -55,7 +56,8 @@ func (a *App) Run() error {
 	a.logger.Info("redis connection established")
 
 	a.grpcServer = grpc.NewServer()
-	h := handler.NewHandler(a.logger, queries, db, rdb)
+	s := service.NewService(queries, db, rdb)
+	h := handler.NewHandler(a.logger, s)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 

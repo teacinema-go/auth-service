@@ -5,15 +5,16 @@
 package teacinema
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Account struct {
-	ID              pgtype.UUID        `json:"id"`
+	ID              uuid.UUID          `json:"id"`
 	Phone           *string            `json:"phone"`
 	Email           *string            `json:"email"`
-	IsPhoneVerified *bool              `json:"is_phone_verified"`
-	IsEmailVerified *bool              `json:"is_email_verified"`
+	IsPhoneVerified bool               `json:"is_phone_verified"`
+	IsEmailVerified bool               `json:"is_email_verified"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }

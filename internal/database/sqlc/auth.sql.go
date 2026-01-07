@@ -8,7 +8,7 @@ package teacinema
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 )
 
 const createAccount = `-- name: CreateAccount :one
@@ -21,9 +21,9 @@ RETURNING id, phone, email, is_phone_verified, is_email_verified, created_at, up
 `
 
 type CreateAccountParams struct {
-	ID    pgtype.UUID `json:"id"`
-	Phone *string     `json:"phone"`
-	Email *string     `json:"email"`
+	ID    uuid.UUID `json:"id"`
+	Phone *string   `json:"phone"`
+	Email *string   `json:"email"`
 }
 
 func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error) {

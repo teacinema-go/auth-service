@@ -2,89 +2,51 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
-	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
-	teacinema "github.com/teacinema-go/auth-service/internal/database/sqlc"
+	"github.com/teacinema-go/auth-service/internal/service"
+	"github.com/teacinema-go/auth-service/pkg/enum"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type Handler struct {
-	logger    *slog.Logger
-	validator *validator.Validate
-	queries   *teacinema.Queries
-	db        *pgxpool.Pool
-	rdb       *redis.Client
+	l *slog.Logger
+	s *service.Service
 	authv1.UnimplementedAuthServiceServer
 }
 
-func NewHandler(logger *slog.Logger, queries *teacinema.Queries, db *pgxpool.Pool, rdb *redis.Client) *Handler {
-	v := validator.New()
+func NewHandler(l *slog.Logger, s *service.Service) *Handler {
 	return &Handler{
-		logger:    logger,
-		validator: v,
-		queries:   queries,
-		db:        db,
-		rdb:       rdb,
+		l: l,
+		s: s,
 	}
 }
 
 func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*authv1.SendOtpResponse, error) {
-	log := h.logger.With(
+	log := h.l.With(
 		"method", "SendOtp",
 		"identifier_type", req.Type,
 	)
-
-	var err error
-	var account teacinema.Account
-	if req.Type == "phone" {
-		account, err = h.queries.GetAccountByPhone(ctx, &req.Identifier)
-	} else {
-		account, err = h.queries.GetAccountByEmail(ctx, &req.Identifier)
+	identifierType := enum.IdentifierType(req.Type)
+	if !identifierType.IsValid() {
+		return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.InvalidArgument, "invalid identifier type")
 	}
 
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		log.Error("error getting account", "error", err)
-		return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, err.Error())
+	_, err := h.s.GetOrCreateAccount(ctx, req.Identifier, identifierType)
+	if err != nil {
+		log.Error("failed at GetOrCreateAccount()", "error", err)
+		return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, "failed to get or create account")
 	}
 
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		uuidV7, err := uuid.NewV7()
-		if err != nil {
-			log.Error("failed to generate UUIDv7", "error", err)
-			return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, "failed to generate UUID")
-		}
-		accParams := teacinema.CreateAccountParams{
-			ID: pgtype.UUID{
-				Bytes: uuidV7,
-				Valid: true,
-			},
-		}
-		if req.Type == "phone" {
-			accParams.Phone = &req.Identifier
-		} else {
-			accParams.Email = &req.Identifier
-		}
-		account, err = h.queries.CreateAccount(ctx, accParams)
-		if err != nil {
-			log.Error("failed to create account", "error", err)
-			return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, "failed to create account")
-		}
-
-	case err != nil:
-		log.Error("failed to get account", "error", err)
-		return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, "failed to get account")
+	code, err := h.s.GenerateCode(ctx, req.Identifier, identifierType)
+	if err != nil {
+		log.Error("failed at GenerateCode()", "error", err)
+		return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, "failed to generate code")
 	}
 
-	log.Info("otp sent successfully", "account", account)
+	log.Info("code", "code", code)
+
 	return &authv1.SendOtpResponse{Ok: true}, nil
 }
