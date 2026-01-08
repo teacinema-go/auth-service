@@ -64,14 +64,8 @@ func (s *Service) GetOrCreateAccount(ctx context.Context, identifier string, ide
 	return &acc, nil
 }
 
-func (s *Service) GenerateCode(ctx context.Context, identifier string, identifierType enum.IdentifierType) (int64, error) {
-	code, err := utils.GenerateCode()
-	if err != nil {
-		return code, fmt.Errorf("failed to generate code: %w", err)
-	}
-
+func (s *Service) SaveCodeToCache(ctx context.Context, code int64, identifier string, identifierType enum.IdentifierType) {
 	hash := utils.GenerateHashForCode(code)
 	key := fmt.Sprintf("otp:%s:%s", identifierType, identifier)
 	s.rdb.Set(ctx, key, hash, 5*time.Minute)
-	return code, nil
 }

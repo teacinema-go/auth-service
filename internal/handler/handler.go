@@ -6,6 +6,7 @@ import (
 
 	"github.com/teacinema-go/auth-service/internal/service"
 	"github.com/teacinema-go/auth-service/pkg/enum"
+	"github.com/teacinema-go/auth-service/pkg/utils"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,11 +41,13 @@ func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*aut
 		return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, "failed to get or create account")
 	}
 
-	code, err := h.s.GenerateCode(ctx, req.Identifier, identifierType)
+	code, err := utils.GenerateCode()
 	if err != nil {
 		log.Error("failed at GenerateCode()", "error", err)
 		return &authv1.SendOtpResponse{Ok: false}, status.Error(codes.Internal, "failed to generate code")
 	}
+
+	h.s.SaveCodeToCache(ctx, code, req.Identifier, identifierType)
 
 	log.Info("code", "code", code)
 
