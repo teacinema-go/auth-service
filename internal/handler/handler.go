@@ -27,14 +27,20 @@ func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*aut
 	log := h.l.With(
 		"method", "SendOtp",
 	)
+
+	log.Info("send otp request received")
+
 	identifierType := req.GetIdentifierType()
 	if identifierType == authv1.IdentifierType_IDENTIFIER_TYPE_UNSPECIFIED {
+		log.Warn("invalid identifier type")
 		return &authv1.SendOtpResponse{
 			Success:      false,
 			ErrorCode:    authv1.SendOtpResponse_INVALID_IDENTIFIER_TYPE,
 			ErrorMessage: "invalid identifier type",
 		}, nil
 	}
+
+	log = log.With("identifier_type", identifierType)
 
 	_, err := h.s.GetAccount(ctx, req.Identifier, identifierType)
 	if err != nil && !errors.Is(err, appErrors.ErrNotFound) {
@@ -58,6 +64,8 @@ func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*aut
 		}
 	}
 
+	log.Info("account found or created")
+
 	otp, err := h.s.GenerateOtp(ctx, req.Identifier, identifierType)
 	if err != nil {
 		log.Error("failed at GenerateOtp()", "error", err)
@@ -68,7 +76,8 @@ func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*aut
 		}, nil
 	}
 
-	log.Info("otp", "otp", otp)
+	log.Info("otp generated")
+	log.Debug(otp)
 
 	return &authv1.SendOtpResponse{
 		Success: true,
@@ -83,8 +92,11 @@ func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (
 		"method", "VerifyOtp",
 	)
 
+	log.Info("verify otp request received")
+
 	identifierType := req.GetIdentifierType()
 	if identifierType == authv1.IdentifierType_IDENTIFIER_TYPE_UNSPECIFIED {
+		log.Warn("invalid identifier type")
 		return &authv1.VerifyOtpResponse{
 			Success:      false,
 			ErrorCode:    authv1.VerifyOtpResponse_INVALID_IDENTIFIER_TYPE,
@@ -92,9 +104,12 @@ func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (
 		}, nil
 	}
 
+	log = log.With("identifier_type", identifierType)
+
 	isValid, err := h.s.VerifyOtp(ctx, req.Otp, req.Identifier, identifierType)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrNotFound) {
+			log.Warn("invalid or expired otp")
 			return &authv1.VerifyOtpResponse{
 				Success:      false,
 				ErrorCode:    authv1.VerifyOtpResponse_EXPIRED_OTP,
@@ -110,6 +125,7 @@ func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (
 	}
 
 	if !isValid {
+		log.Warn("invalid otp")
 		return &authv1.VerifyOtpResponse{
 			Success:      false,
 			ErrorCode:    authv1.VerifyOtpResponse_INVALID_OTP,
@@ -117,9 +133,12 @@ func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (
 		}, nil
 	}
 
+	log.Info("otp verified")
+
 	acc, err := h.s.GetAccount(ctx, req.Identifier, identifierType)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrNotFound) {
+			log.Warn("account not found")
 			return &authv1.VerifyOtpResponse{
 				Success:      false,
 				ErrorCode:    authv1.VerifyOtpResponse_ACCOUNT_NOT_FOUND,
@@ -134,6 +153,8 @@ func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (
 		}, nil
 	}
 
+	log.Info("account found")
+
 	err = h.s.VerifyAccountByIdentifierType(ctx, acc, identifierType)
 	if err != nil {
 		log.Error("failed at VerifyAccountByIdentifierType()", "error", err)
@@ -143,6 +164,8 @@ func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (
 			ErrorMessage: "failed to verify account",
 		}, nil
 	}
+
+	log.Info("account verified")
 
 	return &authv1.VerifyOtpResponse{
 		Success: true,
