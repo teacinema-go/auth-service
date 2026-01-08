@@ -1,12 +1,12 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "internal/database/queries"
     schema: "internal/database/migrations"
+    queries: "internal/database/queries/accounts"
     gen:
       go:
-        package: "teacinema"
-        out: "internal/database/sqlc"
+        package: "accounts"
+        out: "internal/database/sqlc/accounts"
         sql_package: "pgx/v5"
         overrides:
           - db_type: "uuid"
