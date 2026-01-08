@@ -14,7 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/teacinema-go/auth-service/internal/config"
 	"github.com/teacinema-go/auth-service/internal/database"
-	teacinema "github.com/teacinema-go/auth-service/internal/database/sqlc"
+	"github.com/teacinema-go/auth-service/internal/database/sqlc/accounts"
 	"github.com/teacinema-go/auth-service/internal/handler"
 	"github.com/teacinema-go/auth-service/internal/service"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
@@ -44,7 +44,7 @@ func (a *App) Run() error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	a.db = db
-	queries := teacinema.New(db)
+	accountsQ := accounts.New(db)
 
 	a.logger.Info("database connection established")
 
@@ -56,7 +56,7 @@ func (a *App) Run() error {
 	a.logger.Info("redis connection established")
 
 	a.grpcServer = grpc.NewServer()
-	s := service.NewService(queries, db, rdb)
+	s := service.NewService(accountsQ, db, rdb)
 	h := handler.NewHandler(a.logger, s)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)

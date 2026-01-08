@@ -12,8 +12,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/teacinema-go/auth-service/internal/database/sqlc/accounts"
 	appErrors "github.com/teacinema-go/auth-service/internal/errors"
-	"github.com/teacinema-go/auth-service/pkg/enum"
 	"github.com/teacinema-go/auth-service/pkg/utils"
+	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 )
 
 type Service struct {
@@ -30,10 +30,10 @@ func NewService(queries *accounts.Queries, db *pgxpool.Pool, rdb *redis.Client) 
 	}
 }
 
-func (s *Service) GetAccount(ctx context.Context, identifier string, identifierType enum.IdentifierType) (*accounts.Account, error) {
+func (s *Service) GetAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*accounts.Account, error) {
 	var err error
 	var acc accounts.Account
-	if identifierType == "phone" {
+	if identifierType == authv1.IdentifierType_PHONE {
 		acc, err = s.accountsQ.GetByPhone(ctx, &identifier)
 	} else {
 		acc, err = s.accountsQ.GetByEmail(ctx, &identifier)
@@ -50,7 +50,7 @@ func (s *Service) GetAccount(ctx context.Context, identifier string, identifierT
 	return &acc, nil
 }
 
-func (s *Service) CreateAccount(ctx context.Context, identifier string, identifierType enum.IdentifierType) (*accounts.Account, error) {
+func (s *Service) CreateAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*accounts.Account, error) {
 	uuidV7, err := uuid.NewV7()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate UUID: %w", err)
@@ -58,7 +58,7 @@ func (s *Service) CreateAccount(ctx context.Context, identifier string, identifi
 	params := accounts.CreateParams{
 		ID: uuidV7,
 	}
-	if identifierType == "phone" {
+	if identifierType == authv1.IdentifierType_PHONE {
 		params.Phone = &identifier
 	} else {
 		params.Email = &identifier
@@ -71,9 +71,9 @@ func (s *Service) CreateAccount(ctx context.Context, identifier string, identifi
 	return &acc, nil
 }
 
-func (s *Service) VerifyAccountByIdentifierType(ctx context.Context, acc *accounts.Account, identifierType enum.IdentifierType) error {
+func (s *Service) VerifyAccountByIdentifierType(ctx context.Context, acc *accounts.Account, identifierType authv1.IdentifierType) error {
 	var err error
-	if identifierType == "phone" {
+	if identifierType == authv1.IdentifierType_PHONE {
 		err = s.accountsQ.UpdateIsPhoneVerified(ctx, accounts.UpdateIsPhoneVerifiedParams{
 			ID:              acc.ID,
 			IsPhoneVerified: true,
@@ -87,7 +87,7 @@ func (s *Service) VerifyAccountByIdentifierType(ctx context.Context, acc *accoun
 	return err
 }
 
-func (s *Service) GenerateOtp(ctx context.Context, identifier string, identifierType enum.IdentifierType) (string, error) {
+func (s *Service) GenerateOtp(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (string, error) {
 	otp, err := utils.Generate6Digit()
 	if err != nil {
 		return otp, fmt.Errorf("failed to generate otp: %w", err)
@@ -98,7 +98,7 @@ func (s *Service) GenerateOtp(ctx context.Context, identifier string, identifier
 	return otp, s.rdb.Set(ctx, key, hash, 5*time.Minute).Err()
 }
 
-func (s *Service) VerifyOtp(ctx context.Context, otp string, identifier string, identifierType enum.IdentifierType) (bool, error) {
+func (s *Service) VerifyOtp(ctx context.Context, otp string, identifier string, identifierType authv1.IdentifierType) (bool, error) {
 	key := fmt.Sprintf("otp:%s:%s", identifierType, identifier)
 	val, err := s.rdb.Get(ctx, key).Result()
 	if err != nil {
