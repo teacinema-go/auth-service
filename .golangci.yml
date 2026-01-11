@@ -11,10 +11,8 @@ linters:
     - staticcheck
     - ineffassign
     - unused
-    - gosimple
   exclusions:
     paths:
-          - internal/database/sqlc
+      - internal/database/sqlc
     presets:
-          - comments
-
+      - comments
