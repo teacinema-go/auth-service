@@ -3,28 +3,26 @@ package handler
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	appErrors "github.com/teacinema-go/auth-service/internal/errors"
 	"github.com/teacinema-go/auth-service/internal/service"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
+	"github.com/teacinema-go/core/logger"
 )
 
 type Handler struct {
-	l *slog.Logger
 	s *service.Service
 	authv1.UnimplementedAuthServiceServer
 }
 
-func NewHandler(l *slog.Logger, s *service.Service) *Handler {
+func NewHandler(s *service.Service) *Handler {
 	return &Handler{
-		l: l,
 		s: s,
 	}
 }
 
 func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*authv1.SendOtpResponse, error) {
-	log := h.l.With(
+	log := logger.With(
 		"method", "SendOtp",
 	)
 
@@ -88,7 +86,7 @@ func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*aut
 }
 
 func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (*authv1.VerifyOtpResponse, error) {
-	log := h.l.With(
+	log := logger.With(
 		"method", "VerifyOtp",
 	)
 

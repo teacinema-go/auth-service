@@ -14,11 +14,11 @@ func main() {
 		log.Fatal("failed to load config:", err)
 	}
 
-	l := logger.New(cfg.App.Env)
-	l.Info("config loaded successfully", "env", cfg.App.Env)
-	application := app.New(cfg, l)
+	logger.Init(cfg.App.Env)
+	logger.Info("config loaded successfully", "env", cfg.App.Env)
+	application := app.New(cfg)
 
 	if err = application.Run(); err != nil {
-		l.Error("application stopped with error", "error", err)
+		logger.Error("application stopped with error", "error", err)
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -18,21 +17,20 @@ import (
 	"github.com/teacinema-go/auth-service/internal/handler"
 	"github.com/teacinema-go/auth-service/internal/service"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
+	"github.com/teacinema-go/core/logger"
 	"google.golang.org/grpc"
 )
 
 type App struct {
 	cfg        *config.Config
-	logger     *slog.Logger
 	grpcServer *grpc.Server
 	db         *pgxpool.Pool
 	rdb        *redis.Client
 }
 
-func New(cfg *config.Config, logger *slog.Logger) *App {
+func New(cfg *config.Config) *App {
 	return &App{
-		cfg:    cfg,
-		logger: logger,
+		cfg: cfg,
 	}
 }
 
@@ -46,18 +44,18 @@ func (a *App) Run() error {
 	a.db = db
 	accountsQ := accounts.New(db)
 
-	a.logger.Info("database connection established")
+	logger.Info("database connection established")
 
 	rdb, err := database.NewRedisClient(ctx, &a.cfg.Redis)
 	if err != nil {
 		return fmt.Errorf("failed to connect to redis: %w", err)
 	}
 	a.rdb = rdb
-	a.logger.Info("redis connection established")
+	logger.Info("redis connection established")
 
 	a.grpcServer = grpc.NewServer()
 	s := service.NewService(accountsQ, db, rdb)
-	h := handler.NewHandler(a.logger, s)
+	h := handler.NewHandler(s)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 
@@ -71,23 +69,23 @@ func (a *App) Run() error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		a.logger.Info("starting gRPC server", "port", a.cfg.App.Port)
+		logger.Info("starting gRPC server", "port", a.cfg.App.Port)
 		if err = a.grpcServer.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			a.logger.Error("gRPC server error", "error", err)
+			logger.Error("gRPC server error", "error", err)
 			quit <- syscall.SIGTERM
 		}
 	}()
 
 	sig := <-quit
-	a.logger.Info("received shutdown signal", "signal", sig.String())
-	a.logger.Info("shutting down server...")
+	logger.Info("received shutdown signal", "signal", sig.String())
+	logger.Info("shutting down server...")
 
 	a.grpcServer.GracefulStop()
-	a.logger.Info("gRPC server stopped")
+	logger.Info("gRPC server stopped")
 
 	if a.db != nil {
 		a.db.Close()
-		a.logger.Info("database connection closed")
+		logger.Info("database connection closed")
 	}
 
 	if a.rdb != nil {
@@ -95,9 +93,9 @@ func (a *App) Run() error {
 		if err != nil {
 			return fmt.Errorf("failed to close redis client: %w", err)
 		}
-		a.logger.Info("redis connection closed")
+		logger.Info("redis connection closed")
 	}
 
-	a.logger.Info("server stopped gracefully")
+	logger.Info("server stopped gracefully")
 	return nil
 }
