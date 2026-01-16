@@ -1,18 +1,22 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "internal/database/migrations"
-    queries: "internal/database/queries/accounts"
+    schema: "internal/infra/storage/postgres/migrations"
+    queries: "internal/infra/storage/postgres/queries/accounts"
     gen:
       go:
         package: "accounts"
-        out: "internal/database/sqlc/accounts"
+        out: "internal/infra/storage/postgres/sqlc/accounts"
         sql_package: "pgx/v5"
         overrides:
           - db_type: "uuid"
             go_type:
               import: "github.com/google/uuid"
               type: "UUID"
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type: "Time"
         emit_json_tags: true
         emit_prepared_queries: false
         emit_interface: true

@@ -1,27 +1,35 @@
-package handler
+package handlers
 
 import (
 	"context"
 	"errors"
 
+	"github.com/teacinema-go/auth-service/internal/auth/entity"
 	appErrors "github.com/teacinema-go/auth-service/internal/errors"
-	"github.com/teacinema-go/auth-service/internal/service"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"github.com/teacinema-go/core/logger"
 )
 
-type Handler struct {
-	s *service.Service
+type AuthService interface {
+	GetAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*entity.Account, error)
+	CreateAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*entity.Account, error)
+	VerifyAccountByIdentifierType(ctx context.Context, acc *entity.Account, identifierType authv1.IdentifierType) error
+	GenerateOtp(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (string, error)
+	VerifyOtp(ctx context.Context, otp string, identifier string, identifierType authv1.IdentifierType) (bool, error)
+}
+
+type AuthHandler struct {
+	s AuthService
 	authv1.UnimplementedAuthServiceServer
 }
 
-func NewHandler(s *service.Service) *Handler {
-	return &Handler{
+func NewAuthHandler(s AuthService) *AuthHandler {
+	return &AuthHandler{
 		s: s,
 	}
 }
 
-func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*authv1.SendOtpResponse, error) {
+func (h *AuthHandler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*authv1.SendOtpResponse, error) {
 	log := logger.With(
 		"method", "SendOtp",
 	)
@@ -85,7 +93,7 @@ func (h *Handler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (*aut
 	}, nil
 }
 
-func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (*authv1.VerifyOtpResponse, error) {
+func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (*authv1.VerifyOtpResponse, error) {
 	log := logger.With(
 		"method", "VerifyOtp",
 	)
@@ -165,6 +173,7 @@ func (h *Handler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpRequest) (
 
 	log.Info("account verified")
 
+	// TODO
 	return &authv1.VerifyOtpResponse{
 		Success: true,
 		Tokens: &authv1.VerifyOtpResponse_AuthTokens{

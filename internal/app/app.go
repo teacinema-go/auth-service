@@ -10,12 +10,14 @@ import (
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
+	redisclient "github.com/redis/go-redis/v9"
+	"github.com/teacinema-go/auth-service/internal/auth/repository"
+	"github.com/teacinema-go/auth-service/internal/auth/service"
 	"github.com/teacinema-go/auth-service/internal/config"
-	"github.com/teacinema-go/auth-service/internal/database"
-	"github.com/teacinema-go/auth-service/internal/database/sqlc/accounts"
-	"github.com/teacinema-go/auth-service/internal/handler"
-	"github.com/teacinema-go/auth-service/internal/service"
+	"github.com/teacinema-go/auth-service/internal/infra/storage/postgres"
+	"github.com/teacinema-go/auth-service/internal/infra/storage/postgres/sqlc/accounts"
+	"github.com/teacinema-go/auth-service/internal/infra/storage/redis"
+	"github.com/teacinema-go/auth-service/internal/transport/grpc/handlers"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"github.com/teacinema-go/core/logger"
 	"google.golang.org/grpc"
@@ -25,7 +27,7 @@ type App struct {
 	cfg        *config.Config
 	grpcServer *grpc.Server
 	db         *pgxpool.Pool
-	rdb        *redis.Client
+	rdb        *redisclient.Client
 }
 
 func New(cfg *config.Config) *App {
@@ -37,7 +39,7 @@ func New(cfg *config.Config) *App {
 func (a *App) Run() error {
 	ctx := context.Background()
 
-	db, err := database.NewPostgresClient(ctx, &a.cfg.Postgres)
+	db, err := postgres.NewPostgresClient(ctx, &a.cfg.Postgres)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -46,7 +48,7 @@ func (a *App) Run() error {
 
 	logger.Info("database connection established")
 
-	rdb, err := database.NewRedisClient(ctx, &a.cfg.Redis)
+	rdb, err := redis.NewRedisClient(ctx, &a.cfg.Redis)
 	if err != nil {
 		return fmt.Errorf("failed to connect to redis: %w", err)
 	}
@@ -54,8 +56,11 @@ func (a *App) Run() error {
 	logger.Info("redis connection established")
 
 	a.grpcServer = grpc.NewServer()
-	s := service.NewService(accountsQ, db, rdb)
-	h := handler.NewHandler(s)
+
+	postgresRepo := repository.NewPostgresRepository(accountsQ)
+	redisRepo := repository.NewRedisRepository(rdb)
+	s := service.NewService(postgresRepo, redisRepo)
+	h := handlers.NewAuthHandler(s)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 
