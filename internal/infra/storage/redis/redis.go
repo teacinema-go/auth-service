@@ -8,7 +8,7 @@ import (
 	"github.com/teacinema-go/auth-service/internal/config"
 )
 
-func NewRedisClient(ctx context.Context, cfg *config.RedisConfig) (*redis.Client, error) {
+func NewRedisClient(ctx context.Context, cfg *config.Redis) (*redis.Client, error) {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,

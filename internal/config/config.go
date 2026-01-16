@@ -10,17 +10,17 @@ import (
 )
 
 type Config struct {
-	App      AppConfig      `mapstructure:",squash"`
-	Postgres PostgresConfig `mapstructure:",squash"`
-	Redis    RedisConfig    `mapstructure:",squash"`
+	App      App      `mapstructure:",squash"`
+	Postgres Postgres `mapstructure:",squash"`
+	Redis    Redis    `mapstructure:",squash"`
 }
 
-type AppConfig struct {
+type App struct {
 	Env  constants.Env `mapstructure:"APP_ENV" validate:"required"`
 	Port int           `mapstructure:"APP_PORT" validate:"required"`
 }
 
-type PostgresConfig struct {
+type Postgres struct {
 	Host     string `mapstructure:"POSTGRES_HOST" validate:"required"`
 	Port     int    `mapstructure:"POSTGRES_PORT" validate:"required"`
 	User     string `mapstructure:"POSTGRES_USER" validate:"required"`
@@ -29,7 +29,7 @@ type PostgresConfig struct {
 	SSLMode  string `mapstructure:"POSTGRES_SSLMODE"`
 }
 
-type RedisConfig struct {
+type Redis struct {
 	Host     string `mapstructure:"REDIS_HOST" validate:"required"`
 	Port     int    `mapstructure:"REDIS_PORT" validate:"required"`
 	Password string `mapstructure:"REDIS_PASSWORD"`
