@@ -60,7 +60,7 @@ func (a *App) Run() error {
 	postgresRepo := repository.NewPostgresRepository(accountsQ)
 	redisRepo := repository.NewRedisRepository(rdb)
 	s := service.NewService(postgresRepo, redisRepo)
-	h := handlers.NewAuthHandler(s)
+	h := handlers.NewAuthHandler(s, a.cfg.App.SecretKey)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 

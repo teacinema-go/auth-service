@@ -16,8 +16,9 @@ type Config struct {
 }
 
 type App struct {
-	Env  constants.Env `mapstructure:"APP_ENV" validate:"required"`
-	Port int           `mapstructure:"APP_PORT" validate:"required"`
+	Env       constants.Env `mapstructure:"APP_ENV" validate:"required"`
+	Port      int           `mapstructure:"APP_PORT" validate:"required"`
+	SecretKey string        `mapstructure:"APP_SECRET_KEY" validate:"required"`
 }
 
 type Postgres struct {

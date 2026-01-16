@@ -3,11 +3,13 @@ package handlers
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/teacinema-go/auth-service/internal/auth/entity"
 	appErrors "github.com/teacinema-go/auth-service/internal/errors"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"github.com/teacinema-go/core/logger"
+	"github.com/teacinema-go/passport"
 )
 
 type AuthService interface {
@@ -21,11 +23,13 @@ type AuthService interface {
 type AuthHandler struct {
 	s AuthService
 	authv1.UnimplementedAuthServiceServer
+	secretKey string
 }
 
-func NewAuthHandler(s AuthService) *AuthHandler {
+func NewAuthHandler(s AuthService, secretKey string) *AuthHandler {
 	return &AuthHandler{
-		s: s,
+		s:         s,
+		secretKey: secretKey,
 	}
 }
 
@@ -173,13 +177,23 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	log.Info("account verified")
 
-	// TODO
+	ttl := 40 * time.Minute
+	accessToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), ttl)
+	if err != nil {
+		log.Error("failed at GenerateToken()", "error", err)
+	}
+
+	refreshToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), 14*24*time.Hour)
+	if err != nil {
+		log.Error("failed at GenerateToken()", "error", err)
+	}
+
 	return &authv1.VerifyOtpResponse{
 		Success: true,
 		Tokens: &authv1.VerifyOtpResponse_AuthTokens{
-			AccessToken:      "123",
-			RefreshToken:     "1234",
-			ExpiresInSeconds: 2,
+			AccessToken:      accessToken,
+			RefreshToken:     refreshToken,
+			ExpiresInSeconds: int32(ttl.Seconds()),
 		},
 	}, nil
 }

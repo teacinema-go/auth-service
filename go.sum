@@ -78,6 +78,8 @@ github.com/teacinema-go/contracts v0.5.0 h1:Tge2FMmh+dheuSnhyqrMhucBMBxW1Cjj3vDK
 github.com/teacinema-go/contracts v0.5.0/go.mod h1:tdRlRk9kY9IMpUnX0BHX8O48ajXBlNfuSOek+8wNPdw=
 github.com/teacinema-go/core v0.7.0 h1:hPUztHnz3zpU1p8NxA2wOY5KoFYmQDc81xbTxV3wNE0=
 github.com/teacinema-go/core v0.7.0/go.mod h1:/U0HgweJGR4AHqZqAe12aNfu4j7HhNhIb38sOfK1K8c=
+github.com/teacinema-go/passport v1.0.0 h1:zFO4UMVfp+5PxXSro3SYh19jwpo+vCnTdROf1eIffxc=
+github.com/teacinema-go/passport v1.0.0/go.mod h1:9JJMR9RTZtq7OxJ/tPUItJQTeK2KQi/HJjg0EGkgXNs=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/otel v1.38.0 h1:RkfdswUDRimDg0m2Az18RKOsnI8UDzppJAtj01/Ymk8=
