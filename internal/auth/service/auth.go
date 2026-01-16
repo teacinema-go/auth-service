@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/hmac"
 	"errors"
 	"fmt"
 	"time"
@@ -27,6 +28,7 @@ type Repository interface {
 type Cache interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key string, value any, ttl time.Duration) error
+	Delete(ctx context.Context, key string) error
 }
 
 type Service struct {
@@ -119,5 +121,11 @@ func (s *Service) VerifyOtp(ctx context.Context, otp string, identifier string, 
 		return false, err
 	}
 	hash := utils.GenerateHash(otp)
-	return hash == val, nil
+
+	if hmac.Equal([]byte(hash), []byte(val)) {
+		_ = s.cache.Delete(ctx, key)
+		return true, nil
+	}
+
+	return false, nil
 }
