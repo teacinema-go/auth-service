@@ -12,6 +12,11 @@ import (
 	"github.com/teacinema-go/passport"
 )
 
+const (
+	accessTokenTTL  = 40 * time.Minute
+	refreshTokenTTL = 14 * 24 * time.Hour
+)
+
 type AuthService interface {
 	GetAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*entity.Account, error)
 	CreateAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*entity.Account, error)
@@ -177,13 +182,12 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	log.Info("account verified")
 
-	ttl := 40 * time.Minute
-	accessToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), ttl)
+	accessToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), accessTokenTTL)
 	if err != nil {
 		log.Error("failed at GenerateToken()", "error", err)
 	}
 
-	refreshToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), 14*24*time.Hour)
+	refreshToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), refreshTokenTTL)
 	if err != nil {
 		log.Error("failed at GenerateToken()", "error", err)
 	}
@@ -193,7 +197,7 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 		Tokens: &authv1.VerifyOtpResponse_AuthTokens{
 			AccessToken:      accessToken,
 			RefreshToken:     refreshToken,
-			ExpiresInSeconds: int32(ttl.Seconds()),
+			ExpiresInSeconds: int32(accessTokenTTL.Seconds()),
 		},
 	}, nil
 }
