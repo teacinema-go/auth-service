@@ -38,5 +38,4 @@ DROP FUNCTION IF EXISTS update_updated_at_column();
 -- +goose StatementEnd
 
 -- +goose StatementBegin
-DROP TABLE IF EXISTS accounts;
 -- +goose StatementEnd

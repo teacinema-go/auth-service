@@ -2,11 +2,11 @@ version: "2"
 sql:
   - engine: "postgresql"
     schema: "internal/infra/storage/postgres/migrations"
-    queries: "internal/infra/storage/postgres/queries/accounts"
+    queries: "internal/infra/storage/postgres/queries"
     gen:
       go:
-        package: "accounts"
-        out: "internal/infra/storage/postgres/sqlc/accounts"
+        package: "sqlc"
+        out: "internal/infra/storage/postgres/sqlc"
         sql_package: "pgx/v5"
         overrides:
           - db_type: "uuid"

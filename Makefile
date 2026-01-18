@@ -1,7 +1,7 @@
 -include .env
 export
 
-MIGRATIONS_DIR=internal/database/migrations
+MIGRATIONS_DIR=internal/infra/storage/postgres/migrations
 
 .PHONY: help
 help: ## Show this help message

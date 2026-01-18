@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/teacinema-go/auth-service/internal/auth/entity"
+	"github.com/teacinema-go/auth-service/internal/auth/valueobject"
 	appErrors "github.com/teacinema-go/auth-service/internal/errors"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"github.com/teacinema-go/core/logger"
@@ -17,24 +17,16 @@ const (
 	refreshTokenTTL = 14 * 24 * time.Hour
 )
 
-type AuthService interface {
-	GetAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*entity.Account, error)
-	CreateAccount(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (*entity.Account, error)
-	VerifyAccountByIdentifierType(ctx context.Context, acc *entity.Account, identifierType authv1.IdentifierType) error
-	GenerateOtp(ctx context.Context, identifier string, identifierType authv1.IdentifierType) (string, error)
-	VerifyOtp(ctx context.Context, otp string, identifier string, identifierType authv1.IdentifierType) (bool, error)
-}
-
 type AuthHandler struct {
-	s AuthService
+	authService AuthService
+	secretKey   string
 	authv1.UnimplementedAuthServiceServer
-	secretKey string
 }
 
-func NewAuthHandler(s AuthService, secretKey string) *AuthHandler {
+func NewAuthHandler(authService AuthService, secretKey string) *AuthHandler {
 	return &AuthHandler{
-		s:         s,
-		secretKey: secretKey,
+		authService: authService,
+		secretKey:   secretKey,
 	}
 }
 
@@ -44,9 +36,9 @@ func (h *AuthHandler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (
 	)
 
 	log.Info("send otp request received")
-
-	identifierType := req.GetIdentifierType()
-	if identifierType == authv1.IdentifierType_IDENTIFIER_TYPE_UNSPECIFIED {
+	var identifierType valueobject.IdentifierType
+	identifierType, err := identifierType.FromProto(req.IdentifierType)
+	if err != nil {
 		log.Warn("invalid identifier type")
 		return &authv1.SendOtpResponse{
 			Success:      false,
@@ -55,10 +47,21 @@ func (h *AuthHandler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (
 		}, nil
 	}
 
+	identifier := valueobject.Identifier(req.Identifier)
+	err = identifier.Validate(identifierType)
+	if err != nil {
+		log.Warn("invalid identifier format")
+		return &authv1.SendOtpResponse{
+			Success:      false,
+			ErrorCode:    authv1.SendOtpResponse_INVALID_IDENTIFIER,
+			ErrorMessage: "invalid identifier format",
+		}, nil
+	}
+
 	log = log.With("identifier_type", identifierType)
 
-	_, err := h.s.GetAccount(ctx, req.Identifier, identifierType)
-	if err != nil && !errors.Is(err, appErrors.ErrNotFound) {
+	_, err = h.authService.GetAccount(ctx, identifier, identifierType)
+	if err != nil && !errors.Is(err, appErrors.ErrAccountNotFound) {
 		log.Error("failed at GetAccount()", "error", err)
 		return &authv1.SendOtpResponse{
 			Success:      false,
@@ -67,8 +70,8 @@ func (h *AuthHandler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (
 		}, nil
 	}
 
-	if errors.Is(err, appErrors.ErrNotFound) {
-		_, err = h.s.CreateAccount(ctx, req.Identifier, identifierType)
+	if errors.Is(err, appErrors.ErrAccountNotFound) {
+		err = h.authService.CreateAccount(ctx, identifier, identifierType)
 		if err != nil {
 			log.Error("failed at CreateAccount()", "error", err)
 			return &authv1.SendOtpResponse{
@@ -81,7 +84,7 @@ func (h *AuthHandler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (
 
 	log.Info("account found or created")
 
-	otp, err := h.s.GenerateOtp(ctx, req.Identifier, identifierType)
+	otp, err := h.authService.GenerateOtp(ctx, identifier, identifierType)
 	if err != nil {
 		log.Error("failed at GenerateOtp()", "error", err)
 		return &authv1.SendOtpResponse{
@@ -109,8 +112,9 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	log.Info("verify otp request received")
 
-	identifierType := req.GetIdentifierType()
-	if identifierType == authv1.IdentifierType_IDENTIFIER_TYPE_UNSPECIFIED {
+	var identifierType valueobject.IdentifierType
+	identifierType, err := identifierType.FromProto(req.IdentifierType)
+	if err != nil {
 		log.Warn("invalid identifier type")
 		return &authv1.VerifyOtpResponse{
 			Success:      false,
@@ -119,11 +123,22 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 		}, nil
 	}
 
+	identifier := valueobject.Identifier(req.Identifier)
+	err = identifier.Validate(identifierType)
+	if err != nil {
+		log.Warn("invalid identifier format")
+		return &authv1.VerifyOtpResponse{
+			Success:      false,
+			ErrorCode:    authv1.VerifyOtpResponse_INVALID_IDENTIFIER,
+			ErrorMessage: "invalid identifier format",
+		}, nil
+	}
+
 	log = log.With("identifier_type", identifierType)
 
-	isValid, err := h.s.VerifyOtp(ctx, req.Otp, req.Identifier, identifierType)
+	isValid, err := h.authService.VerifyOtp(ctx, req.Otp, identifier, identifierType)
 	if err != nil {
-		if errors.Is(err, appErrors.ErrNotFound) {
+		if errors.Is(err, appErrors.ErrAccountNotFound) {
 			log.Warn("invalid or expired otp")
 			return &authv1.VerifyOtpResponse{
 				Success:      false,
@@ -150,9 +165,9 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	log.Info("otp verified")
 
-	acc, err := h.s.GetAccount(ctx, req.Identifier, identifierType)
+	acc, err := h.authService.GetAccount(ctx, identifier, identifierType)
 	if err != nil {
-		if errors.Is(err, appErrors.ErrNotFound) {
+		if errors.Is(err, appErrors.ErrAccountNotFound) {
 			log.Warn("account not found")
 			return &authv1.VerifyOtpResponse{
 				Success:      false,
@@ -168,35 +183,103 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 		}, nil
 	}
 
+	log = logger.With(
+		"accountID", acc.ID.String(),
+	)
+
 	log.Info("account found")
 
-	err = h.s.VerifyAccountByIdentifierType(ctx, acc, identifierType)
+	accessToken := passport.GenerateToken(h.secretKey, acc.ID.String(), accessTokenTTL)
+	refreshToken := passport.GenerateToken(h.secretKey, acc.ID.String(), refreshTokenTTL)
+
+	err = h.authService.CompleteAccountVerification(ctx, acc, refreshToken)
 	if err != nil {
-		log.Error("failed at VerifyAccountByIdentifierType()", "error", err)
+		log.Error("failed at CompleteVerification()", "error", err)
 		return &authv1.VerifyOtpResponse{
 			Success:      false,
 			ErrorCode:    authv1.VerifyOtpResponse_INTERNAL_ERROR,
-			ErrorMessage: "failed to verify account",
+			ErrorMessage: "failed to complete verification",
 		}, nil
 	}
 
-	log.Info("account verified")
-
-	accessToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), accessTokenTTL)
-	if err != nil {
-		log.Error("failed at GenerateToken()", "error", err)
-	}
-
-	refreshToken, err := passport.GenerateToken(h.secretKey, acc.ID.String(), refreshTokenTTL)
-	if err != nil {
-		log.Error("failed at GenerateToken()", "error", err)
-	}
+	log.Info("verification completed")
 
 	return &authv1.VerifyOtpResponse{
 		Success: true,
 		Tokens: &authv1.VerifyOtpResponse_AuthTokens{
-			AccessToken:      accessToken,
-			RefreshToken:     refreshToken,
+			AccessToken:      accessToken.Val,
+			RefreshToken:     refreshToken.Val,
+			ExpiresInSeconds: int32(accessTokenTTL.Seconds()),
+		},
+	}, nil
+}
+
+func (h *AuthHandler) Refresh(ctx context.Context, req *authv1.RefreshRequest) (*authv1.RefreshResponse, error) {
+	log := logger.With(
+		"method", "Refresh",
+	)
+
+	log.Info("refresh token request received")
+
+	oldToken, err := passport.ParseToken(req.RefreshToken)
+	if err != nil {
+		log.Warn("failed at ParseToken()", "error", err)
+		errorCode := authv1.RefreshResponse_INTERNAL_ERROR
+		errorMessage := "failed to parse refresh token"
+		switch {
+		case errors.Is(err, passport.ErrInvalidToken):
+			errorCode = authv1.RefreshResponse_INVALID_REFRESH_TOKEN
+			errorMessage = "invalid refresh token"
+		case errors.Is(err, passport.ErrExpiredToken):
+			errorCode = authv1.RefreshResponse_EXPIRED_REFRESH_TOKEN
+			errorMessage = "expired refresh token"
+		}
+
+		return &authv1.RefreshResponse{
+			Success:      false,
+			ErrorCode:    errorCode,
+			ErrorMessage: errorMessage,
+		}, nil
+	}
+
+	verified := passport.VerifyToken(oldToken, h.secretKey)
+	if !verified {
+		log.Warn("invalid token signature")
+		return &authv1.RefreshResponse{
+			Success:      false,
+			ErrorCode:    authv1.RefreshResponse_INVALID_REFRESH_TOKEN,
+			ErrorMessage: "invalid refresh token",
+		}, nil
+	}
+
+	newAccessToken := passport.GenerateToken(h.secretKey, oldToken.UserID, accessTokenTTL)
+	newRefreshToken := passport.GenerateToken(h.secretKey, oldToken.UserID, refreshTokenTTL)
+
+	err = h.authService.RotateRefreshToken(ctx, req.RefreshToken, newRefreshToken)
+	if err != nil {
+		if errors.Is(err, appErrors.ErrInvalidRefreshToken) {
+			log.Warn("refresh token not found in database")
+			return &authv1.RefreshResponse{
+				Success:      false,
+				ErrorCode:    authv1.RefreshResponse_INVALID_REFRESH_TOKEN,
+				ErrorMessage: "invalid refresh token",
+			}, nil
+		}
+		log.Error("failed at RotateRefreshToken()", "error", err)
+		return &authv1.RefreshResponse{
+			Success:      false,
+			ErrorCode:    authv1.RefreshResponse_INTERNAL_ERROR,
+			ErrorMessage: "failed to refresh token",
+		}, nil
+	}
+
+	log.Info("tokens refreshed successfully")
+
+	return &authv1.RefreshResponse{
+		Success: true,
+		Tokens: &authv1.RefreshResponse_AuthTokens{
+			AccessToken:      newAccessToken.Val,
+			RefreshToken:     newRefreshToken.Val,
 			ExpiresInSeconds: int32(accessTokenTTL.Seconds()),
 		},
 	}, nil
