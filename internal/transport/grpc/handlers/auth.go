@@ -138,7 +138,7 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	isValid, err := h.authService.VerifyOtp(ctx, req.Otp, identifier, identifierType)
 	if err != nil {
-		if errors.Is(err, appErrors.ErrAccountNotFound) {
+		if errors.Is(err, appErrors.ErrNotFound) {
 			log.Warn("invalid or expired otp")
 			return &authv1.VerifyOtpResponse{
 				Success:      false,
