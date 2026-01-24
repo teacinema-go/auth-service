@@ -29,7 +29,7 @@ func (h *AuthHandler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (
 
 	log.Info("send otp request received")
 
-	identifierType, err := getIdentifierTypeFromProto(req.IdentifierType)
+	identifierType, err := valueobject.NewIdentifierTypeFromProto(req.IdentifierType)
 	if err != nil {
 		return sendErrorSendOtpResponse(authv1.SendOtpResponse_INVALID_IDENTIFIER_TYPE)
 	}
@@ -76,7 +76,7 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	log.Info("verify otp request received")
 
-	identifierType, err := getIdentifierTypeFromProto(req.IdentifierType)
+	identifierType, err := valueobject.NewIdentifierTypeFromProto(req.IdentifierType)
 	if err != nil {
 		return sendErrorVerifyOtpResponse(authv1.VerifyOtpResponse_INVALID_IDENTIFIER_TYPE)
 	}

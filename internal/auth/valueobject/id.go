@@ -17,6 +17,19 @@ func NewID() (ID, error) {
 	return ID(uuidV7), nil
 }
 
+func NewIDFromString(data string) (ID, error) {
+	u, err := uuid.Parse(data)
+	if err != nil {
+		return ID(u), fmt.Errorf("invalid UUID format: %w", err)
+	}
+
+	return ID(u), nil
+}
+
 func (id ID) ToUUID() uuid.UUID {
 	return uuid.UUID(id)
+}
+
+func (id ID) ToString() string {
+	return id.ToUUID().String()
 }

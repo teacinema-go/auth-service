@@ -19,6 +19,7 @@ import (
 	"github.com/teacinema-go/auth-service/internal/infra/storage/redis"
 	"github.com/teacinema-go/auth-service/internal/services/txmanager"
 	"github.com/teacinema-go/auth-service/internal/transport/grpc/handlers"
+	accountv1 "github.com/teacinema-go/contracts/gen/go/account/v1"
 	authv1 "github.com/teacinema-go/contracts/gen/go/auth/v1"
 	"github.com/teacinema-go/core/logger"
 	"google.golang.org/grpc"
@@ -64,9 +65,11 @@ func (a *App) Run() error {
 
 	authService := services.NewAuthService(postgresAccountRepo, postgresRefreshTokenRepo, redisClient, txManager, a.cfg.App.SecretKey)
 
-	h := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authService)
+	accountHandler := handlers.NewAccountHandler(authService)
 
-	authv1.RegisterAuthServiceServer(a.grpcServer, h)
+	authv1.RegisterAuthServiceServer(a.grpcServer, authHandler)
+	accountv1.RegisterAccountServiceServer(a.grpcServer, accountHandler)
 
 	grpcAddr := fmt.Sprintf(":%d", a.cfg.App.Port)
 	lis, err := net.Listen("tcp", grpcAddr)

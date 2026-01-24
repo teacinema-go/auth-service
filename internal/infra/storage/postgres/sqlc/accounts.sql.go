@@ -82,6 +82,25 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email *string) (Account
 	return i, err
 }
 
+const getAccountByID = `-- name: GetAccountByID :one
+SELECT id, phone, email, role, created_at, updated_at FROM accounts
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetAccountByID(ctx context.Context, id uuid.UUID) (Account, error) {
+	row := q.db.QueryRow(ctx, getAccountByID, id)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.Phone,
+		&i.Email,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getAccountByPhone = `-- name: GetAccountByPhone :one
 SELECT id, phone, email, role, created_at, updated_at FROM accounts
 WHERE phone = $1 LIMIT 1

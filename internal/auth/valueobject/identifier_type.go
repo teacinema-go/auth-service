@@ -23,7 +23,7 @@ func (it IdentifierType) ToProto() authv1.IdentifierType {
 	}
 }
 
-func (it IdentifierType) FromProto(protoIdentifierType authv1.IdentifierType) (IdentifierType, error) {
+func NewIdentifierTypeFromProto(protoIdentifierType authv1.IdentifierType) (IdentifierType, error) {
 	switch protoIdentifierType {
 	case authv1.IdentifierType_EMAIL:
 		return IdentifierTypeEmail, nil

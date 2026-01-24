@@ -18,6 +18,7 @@ type Querier interface {
 	DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
 	DeleteRefreshTokensByAccountID(ctx context.Context, accountID uuid.UUID) error
 	GetAccountByEmail(ctx context.Context, email *string) (Account, error)
+	GetAccountByID(ctx context.Context, id uuid.UUID) (Account, error)
 	GetAccountByPhone(ctx context.Context, phone *string) (Account, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 }

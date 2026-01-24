@@ -62,6 +62,18 @@ func (r *PostgresAccountRepository) GetAccountByPhone(ctx context.Context, phone
 	return mapSqlcAccount(acc)
 }
 
+func (r *PostgresAccountRepository) GetAccountByID(ctx context.Context, accountID valueobject.ID) (*entities.Account, error) {
+	acc, err := r.q.GetAccountByID(ctx, accountID.ToUUID())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, appErrors.ErrAccountNotFound
+		}
+		return nil, err
+	}
+
+	return mapSqlcAccount(acc)
+}
+
 func (r *PostgresAccountRepository) AccountExistsByEmail(ctx context.Context, email valueobject.Identifier) (bool, error) {
 	strEmail := string(email)
 	return r.q.AccountExistsByEmail(ctx, &strEmail)
