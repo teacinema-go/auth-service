@@ -5,17 +5,23 @@ import (
 )
 
 type CreateAccountParams struct {
-	ID    uuid.UUID `json:"id"`
-	Phone *string   `json:"phone"`
-	Email *string   `json:"email"`
+	ID    uuid.UUID
+	Phone *string
+	Email *string
 }
 
 type UpdateAccountIsEmailVerifiedParams struct {
-	ID              uuid.UUID `json:"id"`
-	IsEmailVerified bool      `json:"is_email_verified"`
+	ID              uuid.UUID
+	IsEmailVerified bool
 }
 
 type UpdateAccountIsPhoneVerifiedParams struct {
-	ID              uuid.UUID `json:"id"`
-	IsPhoneVerified bool      `json:"is_phone_verified"`
+	ID              uuid.UUID
+	IsPhoneVerified bool
+}
+
+type Tokens struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresIn    int32
 }

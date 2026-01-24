@@ -5,13 +5,15 @@ type AuthService struct {
 	refreshTokenRepo RefreshTokenRepository
 	cache            Cache
 	txManager        TxManager
+	secretKey        string
 }
 
-func NewAuthService(accountRepo AccountRepository, refreshTokenRepo RefreshTokenRepository, cache Cache, txManager TxManager) *AuthService {
+func NewAuthService(accountRepo AccountRepository, refreshTokenRepo RefreshTokenRepository, cache Cache, txManager TxManager, secretKey string) *AuthService {
 	return &AuthService{
 		accountRepo:      accountRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		cache:            cache,
 		txManager:        txManager,
+		secretKey:        secretKey,
 	}
 }

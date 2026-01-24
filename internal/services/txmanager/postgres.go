@@ -21,10 +21,10 @@ func NewPostgresTxManager(pool *pgxpool.Pool) *PostgresTxManager {
 	return &PostgresTxManager{pool: pool}
 }
 
-func (m *PostgresTxManager) WithTransaction(ctx context.Context, fn func(repos services.TxRepositories) error) error {
+func (m *PostgresTxManager) WithTransaction(ctx context.Context, fn func(repos services.TxRepositories) (any, error)) (any, error) {
 	tx, err := m.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("begin transaction failed: %w", err)
+		return nil, fmt.Errorf("begin transaction failed: %w", err)
 	}
 
 	defer func(tx pgx.Tx, ctx context.Context) {
@@ -36,15 +36,15 @@ func (m *PostgresTxManager) WithTransaction(ctx context.Context, fn func(repos s
 
 	repos := newTxRepositories(sqlc.New(tx))
 
-	if err = fn(repos); err != nil {
-		return err
+	if res, err := fn(repos); err != nil {
+		return res, err
 	}
 
 	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit transaction failed: %w", err)
+		return nil, fmt.Errorf("commit transaction failed: %w", err)
 	}
 
-	return nil
+	return nil, nil
 }
 
 type txRepositories struct {

@@ -10,7 +10,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/teacinema-go/contracts v0.7.0
 	github.com/teacinema-go/core v0.10.1
-	github.com/teacinema-go/passport v1.1.0
+	github.com/teacinema-go/passport v1.2.0
 	google.golang.org/grpc v1.78.0
 )
 

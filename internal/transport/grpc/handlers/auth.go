@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/teacinema-go/auth-service/internal/auth/valueobject"
 	appErrors "github.com/teacinema-go/auth-service/internal/errors"
@@ -12,21 +11,14 @@ import (
 	"github.com/teacinema-go/passport"
 )
 
-const (
-	accessTokenTTL  = 40 * time.Minute
-	refreshTokenTTL = 14 * 24 * time.Hour
-)
-
 type AuthHandler struct {
 	authService AuthService
-	secretKey   string
 	authv1.UnimplementedAuthServiceServer
 }
 
-func NewAuthHandler(authService AuthService, secretKey string) *AuthHandler {
+func NewAuthHandler(authService AuthService) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
-		secretKey:   secretKey,
 	}
 }
 
@@ -189,10 +181,7 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	log.Info("account found")
 
-	accessToken := passport.GenerateToken(h.secretKey, acc.ID.String(), accessTokenTTL)
-	refreshToken := passport.GenerateToken(h.secretKey, acc.ID.String(), refreshTokenTTL)
-
-	err = h.authService.CompleteAccountVerification(ctx, acc, refreshToken)
+	res, err := h.authService.CompleteAccountVerification(ctx, acc)
 	if err != nil {
 		log.Error("failed at CompleteVerification()", "error", err)
 		return &authv1.VerifyOtpResponse{
@@ -207,9 +196,9 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 	return &authv1.VerifyOtpResponse{
 		Success: true,
 		Tokens: &authv1.VerifyOtpResponse_AuthTokens{
-			AccessToken:      accessToken.Val,
-			RefreshToken:     refreshToken.Val,
-			ExpiresInSeconds: int32(accessTokenTTL.Seconds()),
+			AccessToken:      res.AccessToken,
+			RefreshToken:     res.RefreshToken,
+			ExpiresInSeconds: res.ExpiresIn,
 		},
 	}, nil
 }
@@ -242,7 +231,7 @@ func (h *AuthHandler) Refresh(ctx context.Context, req *authv1.RefreshRequest) (
 		}, nil
 	}
 
-	verified := passport.VerifyToken(oldToken, h.secretKey)
+	verified := h.authService.VerifyToken(oldToken)
 	if !verified {
 		log.Warn("invalid token signature")
 		return &authv1.RefreshResponse{
@@ -252,10 +241,7 @@ func (h *AuthHandler) Refresh(ctx context.Context, req *authv1.RefreshRequest) (
 		}, nil
 	}
 
-	newAccessToken := passport.GenerateToken(h.secretKey, oldToken.UserID, accessTokenTTL)
-	newRefreshToken := passport.GenerateToken(h.secretKey, oldToken.UserID, refreshTokenTTL)
-
-	err = h.authService.RotateRefreshToken(ctx, req.RefreshToken, newRefreshToken)
+	res, err := h.authService.RotateRefreshToken(ctx, oldToken)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrInvalidRefreshToken) {
 			log.Warn("refresh token not found in database")
@@ -278,9 +264,9 @@ func (h *AuthHandler) Refresh(ctx context.Context, req *authv1.RefreshRequest) (
 	return &authv1.RefreshResponse{
 		Success: true,
 		Tokens: &authv1.RefreshResponse_AuthTokens{
-			AccessToken:      newAccessToken.Val,
-			RefreshToken:     newRefreshToken.Val,
-			ExpiresInSeconds: int32(accessTokenTTL.Seconds()),
+			AccessToken:      res.AccessToken,
+			RefreshToken:     res.RefreshToken,
+			ExpiresInSeconds: res.ExpiresIn,
 		},
 	}, nil
 }

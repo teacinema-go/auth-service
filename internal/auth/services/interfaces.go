@@ -32,7 +32,7 @@ type Cache interface {
 }
 
 type TxManager interface {
-	WithTransaction(ctx context.Context, fn func(repos TxRepositories) error) error
+	WithTransaction(ctx context.Context, fn func(repos TxRepositories) (any, error)) (any, error)
 }
 
 type TxRepositories interface {

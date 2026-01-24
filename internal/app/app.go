@@ -62,9 +62,9 @@ func (a *App) Run() error {
 	postgresAccountRepo := account.NewPostgresAccountRepository(sqlcQuerier)
 	postgresRefreshTokenRepo := refreshToken.NewPostgresRefreshTokenRepository(sqlcQuerier)
 
-	authService := services.NewAuthService(postgresAccountRepo, postgresRefreshTokenRepo, redisClient, txManager)
+	authService := services.NewAuthService(postgresAccountRepo, postgresRefreshTokenRepo, redisClient, txManager, a.cfg.App.SecretKey)
 
-	h := handlers.NewAuthHandler(authService, a.cfg.App.SecretKey)
+	h := handlers.NewAuthHandler(authService)
 
 	authv1.RegisterAuthServiceServer(a.grpcServer, h)
 

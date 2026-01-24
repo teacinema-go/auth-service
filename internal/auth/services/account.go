@@ -15,6 +15,11 @@ import (
 	"github.com/teacinema-go/passport"
 )
 
+const (
+	accessTokenTTL  = 40 * time.Minute
+	refreshTokenTTL = 14 * 24 * time.Hour
+)
+
 func (s *AuthService) GetAccount(ctx context.Context, identifier valueobject.Identifier, identifierType valueobject.IdentifierType) (*entities.Account, error) {
 	var err error
 	var acc *entities.Account
@@ -56,8 +61,8 @@ func (s *AuthService) CreateAccount(ctx context.Context, identifier valueobject.
 	return nil
 }
 
-func (s *AuthService) CompleteAccountVerification(ctx context.Context, acc *entities.Account, refreshToken *passport.Token) error {
-	return s.txManager.WithTransaction(ctx, func(repos TxRepositories) error {
+func (s *AuthService) CompleteAccountVerification(ctx context.Context, acc *entities.Account) (dto.Tokens, error) {
+	res, err := s.txManager.WithTransaction(ctx, func(repos TxRepositories) (any, error) {
 		var err error
 		if acc.Phone != nil {
 			err = repos.Account().UpdateAccountIsPhoneVerified(ctx, dto.UpdateAccountIsPhoneVerifiedParams{
@@ -71,13 +76,15 @@ func (s *AuthService) CompleteAccountVerification(ctx context.Context, acc *enti
 			})
 		}
 		if err != nil {
-			return fmt.Errorf("failed to verify account: %w", err)
+			return nil, fmt.Errorf("failed to verify account: %w", err)
 		}
 
 		tokenID, err := uuid.NewV7()
 		if err != nil {
-			return fmt.Errorf("failed to generate token ID: %w", err)
+			return nil, fmt.Errorf("failed to generate token ID: %w", err)
 		}
+
+		refreshToken := passport.GenerateToken(s.secretKey, acc.ID.String(), refreshTokenTTL)
 
 		err = repos.RefreshToken().CreateRefreshToken(ctx, dto.CreateRefreshTokenParams{
 			ID:        tokenID,
@@ -86,50 +93,77 @@ func (s *AuthService) CompleteAccountVerification(ctx context.Context, acc *enti
 			ExpiresAt: time.Unix(refreshToken.Exp, 0),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create refresh token: %w", err)
+			return nil, fmt.Errorf("failed to create refresh token: %w", err)
 		}
+		accessToken := passport.GenerateToken(s.secretKey, acc.ID.String(), accessTokenTTL)
 
-		return nil
+		return dto.Tokens{
+			AccessToken:  accessToken.Val,
+			RefreshToken: refreshToken.Val,
+			ExpiresIn:    int32(accessTokenTTL.Seconds()),
+		}, nil
 	})
+	if err != nil {
+		return dto.Tokens{}, err
+	}
+
+	return res.(dto.Tokens), nil
 }
 
-func (s *AuthService) RotateRefreshToken(ctx context.Context, oldTokenValue string, newToken *passport.Token) error {
-	return s.txManager.WithTransaction(ctx, func(repos TxRepositories) error {
-		oldHash := utils.GenerateHash(oldTokenValue)
+func (s *AuthService) VerifyToken(token *passport.Token) bool {
+	return passport.VerifyToken(token, s.secretKey)
+}
+
+func (s *AuthService) RotateRefreshToken(ctx context.Context, oldToken *passport.Token) (dto.Tokens, error) {
+	res, err := s.txManager.WithTransaction(ctx, func(repos TxRepositories) (any, error) {
+		oldHash := utils.GenerateHash(oldToken.Val)
 
 		_, err := repos.RefreshToken().GetRefreshTokenByHash(ctx, oldHash)
 		if err != nil {
 			if errors.Is(err, appErrors.ErrRefreshTokenNotFound) {
-				return appErrors.ErrInvalidRefreshToken
+				return nil, appErrors.ErrInvalidRefreshToken
 			}
-			return fmt.Errorf("failed to get refresh token: %w", err)
+			return nil, fmt.Errorf("failed to get refresh token: %w", err)
 		}
 
 		err = repos.RefreshToken().DeleteRefreshTokenByHash(ctx, oldHash)
 		if err != nil {
-			return fmt.Errorf("failed to delete old refresh token: %w", err)
+			return nil, fmt.Errorf("failed to delete old refresh token: %w", err)
 		}
 
 		tokenID, err := uuid.NewV7()
 		if err != nil {
-			return fmt.Errorf("failed to generate token ID: %w", err)
+			return nil, fmt.Errorf("failed to generate token ID: %w", err)
 		}
 
-		accountID, err := uuid.Parse(newToken.UserID)
+		newRefreshToken := passport.GenerateToken(s.secretKey, oldToken.UserID, refreshTokenTTL)
+
+		accountID, err := uuid.Parse(newRefreshToken.UserID)
 		if err != nil {
-			return fmt.Errorf("failed to parse account ID: %w", err)
+			return nil, fmt.Errorf("failed to parse account ID: %w", err)
 		}
 
 		err = repos.RefreshToken().CreateRefreshToken(ctx, dto.CreateRefreshTokenParams{
 			ID:        tokenID,
 			AccountID: accountID,
-			TokenHash: utils.GenerateHash(newToken.Val),
-			ExpiresAt: time.Unix(newToken.Exp, 0),
+			TokenHash: utils.GenerateHash(newRefreshToken.Val),
+			ExpiresAt: time.Unix(newRefreshToken.Exp, 0),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create new refresh token: %w", err)
+			return nil, fmt.Errorf("failed to create new refresh token: %w", err)
 		}
+		newAccessToken := passport.GenerateToken(s.secretKey, oldToken.UserID, accessTokenTTL)
 
-		return nil
+		return &dto.Tokens{
+			AccessToken:  newAccessToken.Val,
+			RefreshToken: newRefreshToken.Val,
+			ExpiresIn:    int32(accessTokenTTL.Seconds()),
+		}, nil
 	})
+
+	if err != nil {
+		return dto.Tokens{}, err
+	}
+
+	return res.(dto.Tokens), nil
 }
