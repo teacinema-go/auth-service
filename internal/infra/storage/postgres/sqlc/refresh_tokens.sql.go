@@ -34,14 +34,17 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 	return err
 }
 
-const deleteRefreshTokenByHash = `-- name: DeleteRefreshTokenByHash :exec
+const deleteRefreshTokenByHash = `-- name: DeleteRefreshTokenByHash :execrows
 DELETE FROM refresh_tokens
 WHERE token_hash = $1
 `
 
-func (q *Queries) DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) error {
-	_, err := q.db.Exec(ctx, deleteRefreshTokenByHash, tokenHash)
-	return err
+func (q *Queries) DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRefreshTokenByHash, tokenHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteRefreshTokensByAccountID = `-- name: DeleteRefreshTokensByAccountID :exec

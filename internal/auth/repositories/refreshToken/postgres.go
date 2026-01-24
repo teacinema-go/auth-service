@@ -42,7 +42,7 @@ func (r *PostgresRefreshTokenRepository) GetRefreshTokenByHash(ctx context.Conte
 	return mapSqlcRefreshToken(token), nil
 }
 
-func (r *PostgresRefreshTokenRepository) DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) error {
+func (r *PostgresRefreshTokenRepository) DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error) {
 	return r.q.DeleteRefreshTokenByHash(ctx, tokenHash)
 }
 

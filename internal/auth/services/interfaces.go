@@ -21,7 +21,7 @@ type AccountRepository interface {
 type RefreshTokenRepository interface {
 	CreateRefreshToken(ctx context.Context, arg dto.CreateRefreshTokenParams) error
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (*entities.RefreshToken, error)
-	DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) error
+	DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
 	DeleteRefreshTokensByAccountID(ctx context.Context, accountID uuid.UUID) error
 }
 

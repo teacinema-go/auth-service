@@ -270,3 +270,35 @@ func (h *AuthHandler) Refresh(ctx context.Context, req *authv1.RefreshRequest) (
 		},
 	}, nil
 }
+
+func (h *AuthHandler) Logout(ctx context.Context, req *authv1.LogoutRequest) (*authv1.LogoutResponse, error) {
+	log := logger.With(
+		"method", "Logout",
+	)
+
+	log.Info("logout request received")
+
+	err := h.authService.Logout(ctx, req.RefreshToken)
+	if err != nil {
+		if errors.Is(err, appErrors.ErrInvalidRefreshToken) {
+			log.Warn("refresh token not found in database")
+			return &authv1.LogoutResponse{
+				Success:      false,
+				ErrorCode:    authv1.LogoutResponse_INVALID_REFRESH_TOKEN,
+				ErrorMessage: "invalid refresh token",
+			}, nil
+		}
+		log.Error("failed at Logout()", "error", err)
+		return &authv1.LogoutResponse{
+			Success:      false,
+			ErrorCode:    authv1.LogoutResponse_INTERNAL_ERROR,
+			ErrorMessage: "failed to logout",
+		}, nil
+	}
+
+	log.Info("logout successful")
+
+	return &authv1.LogoutResponse{
+		Success: true,
+	}, nil
+}

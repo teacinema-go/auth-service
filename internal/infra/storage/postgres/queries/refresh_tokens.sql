@@ -6,7 +6,7 @@ VALUES ($1,$2,$3,$4);
 SELECT * FROM refresh_tokens
 WHERE token_hash = $1 AND expires_at > NOW();
 
--- name: DeleteRefreshTokenByHash :exec
+-- name: DeleteRefreshTokenByHash :execrows
 DELETE FROM refresh_tokens
 WHERE token_hash = $1;
 

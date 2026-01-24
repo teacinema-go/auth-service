@@ -17,4 +17,5 @@ type AuthService interface {
 	CompleteAccountVerification(ctx context.Context, acc *entities.Account) (dto.Tokens, error)
 	VerifyToken(token *passport.Token) bool
 	RotateRefreshToken(ctx context.Context, oldToken *passport.Token) (dto.Tokens, error)
+	Logout(ctx context.Context, refreshToken string) error
 }

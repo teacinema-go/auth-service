@@ -118,17 +118,13 @@ func (s *AuthService) RotateRefreshToken(ctx context.Context, oldToken *passport
 	res, err := s.txManager.WithTransaction(ctx, func(repos TxRepositories) (any, error) {
 		oldHash := utils.GenerateHash(oldToken.Val)
 
-		_, err := repos.RefreshToken().GetRefreshTokenByHash(ctx, oldHash)
-		if err != nil {
-			if errors.Is(err, appErrors.ErrRefreshTokenNotFound) {
-				return nil, appErrors.ErrInvalidRefreshToken
-			}
-			return nil, fmt.Errorf("failed to get refresh token: %w", err)
-		}
-
-		err = repos.RefreshToken().DeleteRefreshTokenByHash(ctx, oldHash)
+		rowsAffected, err := repos.RefreshToken().DeleteRefreshTokenByHash(ctx, oldHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete old refresh token: %w", err)
+		}
+
+		if rowsAffected == 0 {
+			return nil, appErrors.ErrInvalidRefreshToken
 		}
 
 		tokenID, err := uuid.NewV7()
@@ -166,4 +162,19 @@ func (s *AuthService) RotateRefreshToken(ctx context.Context, oldToken *passport
 	}
 
 	return res.(dto.Tokens), nil
+}
+
+func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+	tokenHash := utils.GenerateHash(refreshToken)
+
+	rowsAffected, err := s.refreshTokenRepo.DeleteRefreshTokenByHash(ctx, tokenHash)
+	if err != nil {
+		return fmt.Errorf("failed to delete refresh token: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return appErrors.ErrInvalidRefreshToken
+	}
+
+	return nil
 }
