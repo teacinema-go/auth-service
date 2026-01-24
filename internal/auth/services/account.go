@@ -111,7 +111,7 @@ func (s *AuthService) CompleteAccountVerification(ctx context.Context, acc *enti
 }
 
 func (s *AuthService) VerifyToken(token *passport.Token) bool {
-	return passport.VerifyToken(token, s.secretKey)
+	return token.VerifyToken(s.secretKey)
 }
 
 func (s *AuthService) RotateRefreshToken(ctx context.Context, oldToken *passport.Token) (dto.Tokens, error) {
