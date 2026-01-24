@@ -11,23 +11,60 @@ import (
 	"github.com/google/uuid"
 )
 
-const createAccount = `-- name: CreateAccount :exec
-INSERT INTO accounts (id, phone, email) VALUES ($1, $2, $3)
+const accountExistsByEmail = `-- name: AccountExistsByEmail :one
+SELECT EXISTS (
+    SELECT 1 FROM accounts WHERE email = $1
+) AS exists
+`
+
+func (q *Queries) AccountExistsByEmail(ctx context.Context, email *string) (bool, error) {
+	row := q.db.QueryRow(ctx, accountExistsByEmail, email)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const accountExistsByPhone = `-- name: AccountExistsByPhone :one
+SELECT EXISTS (
+    SELECT 1 FROM accounts WHERE phone = $1
+) AS exists
+`
+
+func (q *Queries) AccountExistsByPhone(ctx context.Context, phone *string) (bool, error) {
+	row := q.db.QueryRow(ctx, accountExistsByPhone, phone)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const createAccount = `-- name: CreateAccount :one
+INSERT INTO accounts (id, phone, email, role)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (phone, email) DO NOTHING
+RETURNING id
 `
 
 type CreateAccountParams struct {
 	ID    uuid.UUID `json:"id"`
 	Phone *string   `json:"phone"`
 	Email *string   `json:"email"`
+	Role  string    `json:"role"`
 }
 
-func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) error {
-	_, err := q.db.Exec(ctx, createAccount, arg.ID, arg.Phone, arg.Email)
-	return err
+func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createAccount,
+		arg.ID,
+		arg.Phone,
+		arg.Email,
+		arg.Role,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getAccountByEmail = `-- name: GetAccountByEmail :one
-SELECT id, phone, email, is_phone_verified, is_email_verified, created_at, updated_at FROM accounts
+SELECT id, phone, email, role, created_at, updated_at FROM accounts
 WHERE email = $1 LIMIT 1
 `
 
@@ -38,8 +75,7 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email *string) (Account
 		&i.ID,
 		&i.Phone,
 		&i.Email,
-		&i.IsPhoneVerified,
-		&i.IsEmailVerified,
+		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -47,7 +83,7 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email *string) (Account
 }
 
 const getAccountByPhone = `-- name: GetAccountByPhone :one
-SELECT id, phone, email, is_phone_verified, is_email_verified, created_at, updated_at FROM accounts
+SELECT id, phone, email, role, created_at, updated_at FROM accounts
 WHERE phone = $1 LIMIT 1
 `
 
@@ -58,42 +94,9 @@ func (q *Queries) GetAccountByPhone(ctx context.Context, phone *string) (Account
 		&i.ID,
 		&i.Phone,
 		&i.Email,
-		&i.IsPhoneVerified,
-		&i.IsEmailVerified,
+		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const updateAccountIsEmailVerified = `-- name: UpdateAccountIsEmailVerified :exec
-UPDATE accounts
-set is_email_verified = $2
-WHERE id = $1
-`
-
-type UpdateAccountIsEmailVerifiedParams struct {
-	ID              uuid.UUID `json:"id"`
-	IsEmailVerified bool      `json:"is_email_verified"`
-}
-
-func (q *Queries) UpdateAccountIsEmailVerified(ctx context.Context, arg UpdateAccountIsEmailVerifiedParams) error {
-	_, err := q.db.Exec(ctx, updateAccountIsEmailVerified, arg.ID, arg.IsEmailVerified)
-	return err
-}
-
-const updateAccountIsPhoneVerified = `-- name: UpdateAccountIsPhoneVerified :exec
-UPDATE accounts
-set is_phone_verified = $2
-WHERE id = $1
-`
-
-type UpdateAccountIsPhoneVerifiedParams struct {
-	ID              uuid.UUID `json:"id"`
-	IsPhoneVerified bool      `json:"is_phone_verified"`
-}
-
-func (q *Queries) UpdateAccountIsPhoneVerified(ctx context.Context, arg UpdateAccountIsPhoneVerifiedParams) error {
-	_, err := q.db.Exec(ctx, updateAccountIsPhoneVerified, arg.ID, arg.IsPhoneVerified)
-	return err
 }

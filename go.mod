@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/spf13/viper v1.21.0
-	github.com/teacinema-go/contracts v0.8.0
+	github.com/teacinema-go/contracts v0.11.0
 	github.com/teacinema-go/core v0.10.1
 	github.com/teacinema-go/passport v1.3.0
 	google.golang.org/grpc v1.78.0

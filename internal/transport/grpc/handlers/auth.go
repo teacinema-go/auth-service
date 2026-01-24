@@ -28,62 +28,34 @@ func (h *AuthHandler) SendOtp(ctx context.Context, req *authv1.SendOtpRequest) (
 	)
 
 	log.Info("send otp request received")
-	var identifierType valueobject.IdentifierType
-	identifierType, err := identifierType.FromProto(req.IdentifierType)
+
+	identifierType, err := getIdentifierTypeFromProto(req.IdentifierType)
 	if err != nil {
-		log.Warn("invalid identifier type")
-		return &authv1.SendOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.SendOtpResponse_INVALID_IDENTIFIER_TYPE,
-			ErrorMessage: "invalid identifier type",
-		}, nil
+		return sendErrorSendOtpResponse(authv1.SendOtpResponse_INVALID_IDENTIFIER_TYPE)
 	}
 
 	identifier := valueobject.Identifier(req.Identifier)
 	err = identifier.Validate(identifierType)
 	if err != nil {
-		log.Warn("invalid identifier format")
-		return &authv1.SendOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.SendOtpResponse_INVALID_IDENTIFIER,
-			ErrorMessage: "invalid identifier format",
-		}, nil
+		return sendErrorSendOtpResponse(authv1.SendOtpResponse_INVALID_IDENTIFIER)
 	}
 
 	log = log.With("identifier_type", identifierType)
 
-	_, err = h.authService.GetAccount(ctx, identifier, identifierType)
-	if err != nil && !errors.Is(err, appErrors.ErrAccountNotFound) {
-		log.Error("failed at GetAccount()", "error", err)
-		return &authv1.SendOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.SendOtpResponse_INTERNAL_ERROR,
-			ErrorMessage: "failed to get account",
-		}, nil
+	exists, err := h.authService.AccountExists(ctx, identifier, identifierType)
+	if err != nil {
+		log.Error("failed at AccountExists()", "error", err)
+		return sendErrorSendOtpResponse(authv1.SendOtpResponse_INTERNAL_ERROR)
 	}
 
-	if errors.Is(err, appErrors.ErrAccountNotFound) {
-		err = h.authService.CreateAccount(ctx, identifier, identifierType)
-		if err != nil {
-			log.Error("failed at CreateAccount()", "error", err)
-			return &authv1.SendOtpResponse{
-				Success:      false,
-				ErrorCode:    authv1.SendOtpResponse_INTERNAL_ERROR,
-				ErrorMessage: "failed to create account",
-			}, nil
-		}
+	if exists {
+		return sendErrorSendOtpResponse(authv1.SendOtpResponse_ACCOUNT_ALREADY_EXISTS)
 	}
-
-	log.Info("account found or created")
 
 	otp, err := h.authService.GenerateOtp(ctx, identifier, identifierType)
 	if err != nil {
 		log.Error("failed at GenerateOtp()", "error", err)
-		return &authv1.SendOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.SendOtpResponse_INTERNAL_ERROR,
-			ErrorMessage: "failed to generate otp",
-		}, nil
+		return sendErrorSendOtpResponse(authv1.SendOtpResponse_INTERNAL_ERROR)
 	}
 
 	log.Info("otp generated")
@@ -104,26 +76,15 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 
 	log.Info("verify otp request received")
 
-	var identifierType valueobject.IdentifierType
-	identifierType, err := identifierType.FromProto(req.IdentifierType)
+	identifierType, err := getIdentifierTypeFromProto(req.IdentifierType)
 	if err != nil {
-		log.Warn("invalid identifier type")
-		return &authv1.VerifyOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.VerifyOtpResponse_INVALID_IDENTIFIER_TYPE,
-			ErrorMessage: "invalid identifier type",
-		}, nil
+		return sendErrorVerifyOtpResponse(authv1.VerifyOtpResponse_INVALID_IDENTIFIER_TYPE)
 	}
 
 	identifier := valueobject.Identifier(req.Identifier)
 	err = identifier.Validate(identifierType)
 	if err != nil {
-		log.Warn("invalid identifier format")
-		return &authv1.VerifyOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.VerifyOtpResponse_INVALID_IDENTIFIER,
-			ErrorMessage: "invalid identifier format",
-		}, nil
+		return sendErrorVerifyOtpResponse(authv1.VerifyOtpResponse_INVALID_IDENTIFIER)
 	}
 
 	log = log.With("identifier_type", identifierType)
@@ -132,62 +93,29 @@ func (h *AuthHandler) VerifyOtp(ctx context.Context, req *authv1.VerifyOtpReques
 	if err != nil {
 		if errors.Is(err, appErrors.ErrNotFound) {
 			log.Warn("invalid or expired otp")
-			return &authv1.VerifyOtpResponse{
-				Success:      false,
-				ErrorCode:    authv1.VerifyOtpResponse_EXPIRED_OTP,
-				ErrorMessage: "invalid or expired otp",
-			}, nil
+			return sendErrorVerifyOtpResponse(authv1.VerifyOtpResponse_EXPIRED_OTP)
 		}
 		log.Error("failed at VerifyOtp()", "error", err)
-		return &authv1.VerifyOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.VerifyOtpResponse_INTERNAL_ERROR,
-			ErrorMessage: "failed to verify otp",
-		}, nil
+		return sendErrorVerifyOtpResponse(authv1.VerifyOtpResponse_INTERNAL_ERROR)
 	}
 
 	if !isValid {
 		log.Warn("invalid otp")
-		return &authv1.VerifyOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.VerifyOtpResponse_INVALID_OTP,
-			ErrorMessage: "invalid otp",
-		}, nil
+		return sendErrorVerifyOtpResponse(authv1.VerifyOtpResponse_INVALID_OTP)
 	}
 
 	log.Info("otp verified")
 
-	acc, err := h.authService.GetAccount(ctx, identifier, identifierType)
+	res, err := h.authService.CreateAccountWithTokens(ctx, identifier, identifierType)
 	if err != nil {
-		if errors.Is(err, appErrors.ErrAccountNotFound) {
-			log.Warn("account not found")
-			return &authv1.VerifyOtpResponse{
-				Success:      false,
-				ErrorCode:    authv1.VerifyOtpResponse_ACCOUNT_NOT_FOUND,
-				ErrorMessage: "account not found",
-			}, nil
+		if errors.Is(err, appErrors.ErrAccountAlreadyExists) {
+			return sendErrorVerifyOtpResponse(authv1.VerifyOtpResponse_ACCOUNT_ALREADY_EXISTS)
 		}
-		log.Error("failed at GetAccount()", "error", err)
+		log.Error("failed at CreateAccountWithTokens()", "error", err)
 		return &authv1.VerifyOtpResponse{
 			Success:      false,
 			ErrorCode:    authv1.VerifyOtpResponse_INTERNAL_ERROR,
-			ErrorMessage: "failed to get account",
-		}, nil
-	}
-
-	log = logger.With(
-		"accountID", acc.ID.String(),
-	)
-
-	log.Info("account found")
-
-	res, err := h.authService.CompleteAccountVerification(ctx, acc)
-	if err != nil {
-		log.Error("failed at CompleteVerification()", "error", err)
-		return &authv1.VerifyOtpResponse{
-			Success:      false,
-			ErrorCode:    authv1.VerifyOtpResponse_INTERNAL_ERROR,
-			ErrorMessage: "failed to complete verification",
+			ErrorMessage: "failed to create account",
 		}, nil
 	}
 

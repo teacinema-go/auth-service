@@ -12,4 +12,6 @@ var (
 	ErrInvalidRefreshToken   = errors.New("invalid refresh token")
 	ErrRefreshTokenNotFound  = errors.New("refresh token not found")
 	ErrAccountNotFound       = errors.New("account not found")
+	ErrAccountAlreadyExists  = errors.New("account already exists")
+	ErrInvalidRole           = errors.New("invalid role")
 )

@@ -11,15 +11,15 @@ import (
 )
 
 type Querier interface {
-	CreateAccount(ctx context.Context, arg CreateAccountParams) error
+	AccountExistsByEmail(ctx context.Context, email *string) (bool, error)
+	AccountExistsByPhone(ctx context.Context, phone *string) (bool, error)
+	CreateAccount(ctx context.Context, arg CreateAccountParams) (uuid.UUID, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	DeleteRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
 	DeleteRefreshTokensByAccountID(ctx context.Context, accountID uuid.UUID) error
 	GetAccountByEmail(ctx context.Context, email *string) (Account, error)
 	GetAccountByPhone(ctx context.Context, phone *string) (Account, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
-	UpdateAccountIsEmailVerified(ctx context.Context, arg UpdateAccountIsEmailVerifiedParams) error
-	UpdateAccountIsPhoneVerified(ctx context.Context, arg UpdateAccountIsPhoneVerifiedParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -1,23 +1,14 @@
 package dto
 
 import (
-	"github.com/google/uuid"
+	"github.com/teacinema-go/auth-service/internal/auth/valueobject"
 )
 
 type CreateAccountParams struct {
-	ID    uuid.UUID
+	ID    valueobject.ID
 	Phone *string
 	Email *string
-}
-
-type UpdateAccountIsEmailVerifiedParams struct {
-	ID              uuid.UUID
-	IsEmailVerified bool
-}
-
-type UpdateAccountIsPhoneVerifiedParams struct {
-	ID              uuid.UUID
-	IsPhoneVerified bool
+	Role  valueobject.Role
 }
 
 type Tokens struct {

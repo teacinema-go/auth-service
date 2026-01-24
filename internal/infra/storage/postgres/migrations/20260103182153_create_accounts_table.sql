@@ -4,8 +4,7 @@ CREATE TABLE accounts (
     id UUID PRIMARY KEY,
     phone VARCHAR(16) UNIQUE,
     email VARCHAR(255) UNIQUE,
-    is_phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    role VARCHAR(50) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -38,4 +37,5 @@ DROP FUNCTION IF EXISTS update_updated_at_column();
 -- +goose StatementEnd
 
 -- +goose StatementBegin
+DROP TABLE IF EXISTS accounts;
 -- +goose StatementEnd

@@ -14,8 +14,8 @@ type AccountRepository interface {
 	CreateAccount(ctx context.Context, arg dto.CreateAccountParams) error
 	GetAccountByEmail(ctx context.Context, email valueobject.Identifier) (*entities.Account, error)
 	GetAccountByPhone(ctx context.Context, phone valueobject.Identifier) (*entities.Account, error)
-	UpdateAccountIsEmailVerified(ctx context.Context, arg dto.UpdateAccountIsEmailVerifiedParams) error
-	UpdateAccountIsPhoneVerified(ctx context.Context, arg dto.UpdateAccountIsPhoneVerifiedParams) error
+	AccountExistsByEmail(ctx context.Context, email valueobject.Identifier) (bool, error)
+	AccountExistsByPhone(ctx context.Context, phone valueobject.Identifier) (bool, error)
 }
 
 type RefreshTokenRepository interface {

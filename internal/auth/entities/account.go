@@ -3,15 +3,14 @@ package entities
 import (
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/teacinema-go/auth-service/internal/auth/valueobject"
 )
 
 type Account struct {
-	ID              uuid.UUID `json:"id"`
-	Phone           *string   `json:"phone"`
-	Email           *string   `json:"email"`
-	IsPhoneVerified bool      `json:"is_phone_verified"`
-	IsEmailVerified bool      `json:"is_email_verified"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID        valueobject.ID   `json:"id"`
+	Phone     *string          `json:"phone"`
+	Email     *string          `json:"email"`
+	Role      valueobject.Role `json:"role"`
+	CreatedAt time.Time        `json:"created_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
 }

@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
@@ -22,11 +23,19 @@ func NewPostgresAccountRepository(q sqlc.Querier) *PostgresAccountRepository {
 
 func (r *PostgresAccountRepository) CreateAccount(ctx context.Context, arg dto.CreateAccountParams) error {
 	param := sqlc.CreateAccountParams{
-		ID:    arg.ID,
+		ID:    arg.ID.ToUUID(),
 		Email: arg.Email,
 		Phone: arg.Phone,
+		Role:  string(arg.Role),
 	}
-	return r.q.CreateAccount(ctx, param)
+	_, err := r.q.CreateAccount(ctx, param)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return appErrors.ErrAccountAlreadyExists
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *PostgresAccountRepository) GetAccountByEmail(ctx context.Context, email valueobject.Identifier) (*entities.Account, error) {
@@ -38,7 +47,7 @@ func (r *PostgresAccountRepository) GetAccountByEmail(ctx context.Context, email
 		}
 		return nil, err
 	}
-	return mapSqlcAccount(acc), nil
+	return mapSqlcAccount(acc)
 }
 
 func (r *PostgresAccountRepository) GetAccountByPhone(ctx context.Context, phone valueobject.Identifier) (*entities.Account, error) {
@@ -50,33 +59,32 @@ func (r *PostgresAccountRepository) GetAccountByPhone(ctx context.Context, phone
 		}
 		return nil, err
 	}
-	return mapSqlcAccount(acc), nil
+	return mapSqlcAccount(acc)
 }
 
-func (r *PostgresAccountRepository) UpdateAccountIsEmailVerified(ctx context.Context, arg dto.UpdateAccountIsEmailVerifiedParams) error {
-	param := sqlc.UpdateAccountIsEmailVerifiedParams{
-		ID:              arg.ID,
-		IsEmailVerified: arg.IsEmailVerified,
+func (r *PostgresAccountRepository) AccountExistsByEmail(ctx context.Context, email valueobject.Identifier) (bool, error) {
+	strEmail := string(email)
+	return r.q.AccountExistsByEmail(ctx, &strEmail)
+}
+
+func (r *PostgresAccountRepository) AccountExistsByPhone(ctx context.Context, phone valueobject.Identifier) (bool, error) {
+	strPhone := string(phone)
+	return r.q.AccountExistsByPhone(ctx, &strPhone)
+}
+
+func mapSqlcAccount(a sqlc.Account) (*entities.Account, error) {
+	role := valueobject.Role(a.Role)
+	err := role.Validate()
+	if err != nil {
+		return nil, err
 	}
-	return r.q.UpdateAccountIsEmailVerified(ctx, param)
-}
 
-func (r *PostgresAccountRepository) UpdateAccountIsPhoneVerified(ctx context.Context, arg dto.UpdateAccountIsPhoneVerifiedParams) error {
-	param := sqlc.UpdateAccountIsPhoneVerifiedParams{
-		ID:              arg.ID,
-		IsPhoneVerified: arg.IsPhoneVerified,
-	}
-	return r.q.UpdateAccountIsPhoneVerified(ctx, param)
-}
-
-func mapSqlcAccount(a sqlc.Account) *entities.Account {
 	return &entities.Account{
-		ID:              a.ID,
-		Email:           a.Email,
-		Phone:           a.Phone,
-		IsPhoneVerified: a.IsPhoneVerified,
-		IsEmailVerified: a.IsEmailVerified,
-		CreatedAt:       a.CreatedAt,
-		UpdatedAt:       a.UpdatedAt,
-	}
+		ID:        valueobject.ID(a.ID),
+		Email:     a.Email,
+		Phone:     a.Phone,
+		Role:      role,
+		CreatedAt: a.CreatedAt,
+		UpdatedAt: a.UpdatedAt,
+	}, nil
 }
